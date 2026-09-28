@@ -31,6 +31,7 @@ export function Composer({
   onPlus,
   onSend,
   placeholder = 'Message',
+  autoFocus,
 }: {
   myColor: string;
   plusOpen: boolean;
@@ -39,6 +40,7 @@ export function Composer({
   onPlus: () => void;
   onSend: (text: string) => void;
   placeholder?: string;
+  autoFocus?: boolean;
 }) {
   const pal = usePalette();
   const [text, setText] = useState('');
@@ -202,6 +204,7 @@ export function Composer({
             <View style={{ flex: 1 }}>
               <TextInput
                 ref={input}
+                autoFocus={autoFocus}
                 value={text}
                 onChangeText={setText}
                 onFocus={() => setFocused(true)}
