@@ -116,10 +116,8 @@ jobs:
           mkdir -p shots
           for scene in chat sidebar model plus; do
             xcrun simctl terminate "$DEVICE" top.xiaoketata.nid.native || true
-            xcrun simctl launch "$DEVICE" top.xiaoketata.nid.native
-            sleep 10
-            xcrun simctl openurl "$DEVICE" "nid://?demo=$scene"
-            sleep 4
+            xcrun simctl launch "$DEVICE" top.xiaoketata.nid.native -demoScene "$scene"
+            sleep 14
             xcrun simctl io "$DEVICE" screenshot "shots/$scene.png"
           done
 

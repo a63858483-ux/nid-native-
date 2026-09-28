@@ -1,9 +1,8 @@
 import { Image } from 'expo-image';
-import * as Linking from 'expo-linking';
 import { router, useNavigation } from 'expo-router';
 import { useDrawerProgress } from 'expo-router/drawer';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DeviceEventEmitter, FlatList, StyleSheet, Text, View, type ScrollViewProps } from 'react-native';
+import { DeviceEventEmitter, FlatList, Settings, StyleSheet, Text, View, type ScrollViewProps } from 'react-native';
 import { KeyboardChatScrollView, KeyboardStickyView } from 'react-native-keyboard-controller';
 import Animated, { interpolate, useAnimatedStyle, type EntryAnimationsValues, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -83,15 +82,17 @@ export default function ChatScreen() {
     return () => sub.remove();
   }, [rows, showToast]);
 
-  // Screenshot hooks for CI: nid://?demo=sidebar|model|plus
-  const url = Linking.useLinkingURL();
+  // CI screenshots: `simctl launch <app> -demoScene sidebar|model|plus` lands in NSUserDefaults.
   useEffect(() => {
-    if (!DEMO || !url) return;
-    const scene = Linking.parse(url).queryParams?.demo;
-    if (scene === 'sidebar') nav.openDrawer();
-    if (scene === 'model') router.push('/sheet/model');
-    if (scene === 'plus') setTimeout(() => setPlusOpen(true), 0);
-  }, [url, nav]);
+    if (!DEMO) return;
+    const scene = Settings.get('demoScene');
+    const t = setTimeout(() => {
+      if (scene === 'sidebar') nav.openDrawer();
+      if (scene === 'model') router.push('/sheet/model');
+      if (scene === 'plus') setPlusOpen(true);
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [nav]);
 
   const pick = (a: PlusAction) => {
     setPlusOpen(false);
