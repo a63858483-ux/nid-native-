@@ -66,7 +66,7 @@ function TextBubble({ role, text, tail, myColor, boxed }: Props) {
         </Svg>
       )}
       <View onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })} style={styles.pad}>
-        <RichText selectable text={text} style={[styles.text, { color: ink }]} />
+        <RichText text={text} style={[styles.text, { color: ink }]} />
       </View>
     </View>
   );

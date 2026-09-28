@@ -21,7 +21,8 @@ import { Typing } from '@/components/Typing';
 import * as api from '@/lib/api';
 import { usePalette, WallpaperContext } from '@/lib/colors';
 import { DEMO } from '@/lib/config';
-import { parseReply, tapbackMarker } from '@/lib/markers';
+import { tapbackMarker } from '@/lib/markers';
+import { plainOf } from '@/lib/rich';
 import { buildRows, segmentsOf, type Row } from '@/lib/rows';
 import { wallpaperUri } from '@/lib/storage';
 import { useApp } from '@/state/app';
@@ -217,12 +218,12 @@ function ChatScreenInner() {
     send(text, atts);
   };
 
+  // Split replies: a reaction or reply points at the one bubble, quoted by its own opening words.
   const targetOf = (row: Extract<Row, { type: 'bubble' }>) => {
     const it = items.find((i) => i.key === row.itemKey);
-    const body = it ? (parseReply(it.text)?.rest ?? it.text) : row.text;
-    return { id: it?.id, body };
+    return { id: it?.id, body: row.text };
   };
-  const openThread = (itemKey: string) => router.push({ pathname: '/thread/[key]', params: { key: itemKey } });
+  const openThread = (itemKey: string, seg: number) => router.push({ pathname: '/thread/[key]', params: { key: itemKey, seg: String(seg) } });
   const longPress = (row: Extract<Row, { type: 'bubble' }>) => {
     const v = bubbleRefs.current[row.key];
     if (!v) return;
@@ -240,9 +241,22 @@ function ChatScreenInner() {
     if (!menu) return;
     const row = menu.row;
     setMenu(null);
-    if (a === 'reply') return openThread(row.itemKey);
+    if (a === 'reply') return openThread(row.itemKey, row.seg);
+    if (a === 'copy') return copyText(plainOf(row.text));
+    if (a === 'select') return router.push({ pathname: '/sheet/select', params: { text: plainOf(row.text) } });
     const { id, body } = targetOf(row);
-    router.push({ pathname: '/sheet/stickers', params: { stick: '1', id: id ? String(id) : '', quote: body.slice(0, 40) } });
+    const mode = a === 'emoji' ? { tap: '1' } : { stick: '1' };
+    router.push({ pathname: '/sheet/stickers', params: { ...mode, id: id ? String(id) : '', quote: body.slice(0, 40) } });
+  };
+  const copyText = async (text: string) => {
+    // expo-clipboard is native: dev builds made before it was added don't have it.
+    try {
+      const Clipboard = await import('expo-clipboard');
+      await Clipboard.setStringAsync(text);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      showToast('Copy needs the newer app build');
+    }
   };
 
   const renderScroll = useCallback(
@@ -304,7 +318,7 @@ function ChatScreenInner() {
           {item.thought && (
             <ThoughtLine label={item.thought.label} live={item.thought.live} icon={item.thought.icon} onPress={() => router.push({ pathname: '/sheet/thought', params: { key: item.itemKey } })} />
           )}
-          {item.quote && <ReplyQuote quote={item.quote} replyMine={mine} onOpen={() => openThread(item.quote!.targetKey)} />}
+          {item.quote && <ReplyQuote quote={item.quote} replyMine={mine} onOpen={() => openThread(item.quote!.targetKey, item.quote!.seg)} />}
           <Decorated mine={mine} myColor={prefs.bubble} tapbacks={item.tapbacks} sticks={item.sticks}>
             <Pressable
               ref={(v) => {
@@ -316,7 +330,7 @@ function ChatScreenInner() {
               <Bubble role={item.role} text={item.text} tail={item.tail} myColor={prefs.bubble} big={item.big} boxed />
             </Pressable>
           </Decorated>
-          {item.replies ? <RepliesLink count={item.replies} mine={mine} onOpen={() => openThread(item.itemKey)} /> : null}
+          {item.replies ? <RepliesLink count={item.replies} mine={mine} onOpen={() => openThread(item.itemKey, item.seg)} /> : null}
           {item.receipt ? <Text style={[styles.receipt, { color: pal.meta }, pal.wall && styles.shadow]}>{item.receipt}</Text> : null}
           {item.failed ? <Text style={styles.failed}>Not delivered: {item.failed}</Text> : null}
         </Animated.View>

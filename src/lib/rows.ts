@@ -6,7 +6,7 @@ import { collapseSteps } from './traces';
 import type { Item } from '@/state/chat';
 
 type Thought = { label: string; live: boolean; icon?: string };
-export type Quote = { targetKey: string; text: string; role: 'user' | 'assistant' };
+export type Quote = { targetKey: string; seg: number; text: string; role: 'user' | 'assistant' };
 export type TapbackView = { emoji: string; mine: boolean };
 export type Decor = { tapbacks: TapbackView[]; sticks: Stick[]; replies: number };
 
@@ -16,6 +16,7 @@ export type Row =
       type: 'bubble';
       key: string;
       itemKey: string;
+      seg: number;
       role: 'user' | 'assistant';
       text: string;
       big: boolean;
@@ -68,6 +69,19 @@ function thoughtOf(i: Item): Thought | undefined {
 
 export type Segment = { kind: 'text'; text: string } | { kind: 'media'; media: Media };
 
+const flat = (t: string) => t.replace(/\s+/g, '').replace(/"/g, '”');
+// Which text segment a quoted snippet points at; the last text one when it can't tell.
+export function segIndex(segs: Segment[], quote?: string): number {
+  let last = 0;
+  segs.forEach((s, i) => {
+    if (s.kind === 'text') last = i;
+  });
+  if (!quote) return last;
+  const q = flat(quote);
+  const hit = segs.findIndex((s) => s.kind === 'text' && flat(s.text).includes(q));
+  return hit >= 0 ? hit : last;
+}
+
 // A message becomes segments in display order: paragraphs, then inline media/stickers/cards.
 export function segmentsOf(it: Item): Segment[] {
   const body = parseReply(it.text)?.rest ?? it.text;
@@ -89,13 +103,19 @@ export function decorate(items: Item[]) {
     if (!d) decor.set(k, (d = { tapbacks: [], sticks: [], replies: 0 }));
     return d;
   };
+  // Reactions land on the one bubble (paragraph) the quoted words come from.
+  const at = (t: Item, quote?: string) => {
+    const segs = segmentsOf(t);
+    const i = segIndex(segs, quote);
+    return { key: `${t.key}:${i}`, seg: i, text: segs[i]?.kind === 'text' ? segs[i].text : '' };
+  };
   items.forEach((it, idx) => {
     const tb = parseTapback(it.text);
     if (tb) {
       hidden.add(it.key);
       const t = resolveRef(tb.ref, items, idx);
       if (!t) return;
-      const d = get(t.key);
+      const d = get(at(t, tb.ref.quote).key);
       const mine = it.role === 'user';
       d.tapbacks = d.tapbacks.filter((x) => !(x.mine === mine && x.emoji === tb.emoji));
       if (!tb.off) d.tapbacks.push({ emoji: tb.emoji, mine });
@@ -105,29 +125,32 @@ export function decorate(items: Item[]) {
     if (st) {
       hidden.add(it.key);
       const t = resolveRef(st.ref, items, idx);
-      if (t) get(t.key).sticks.push(st);
+      if (t) get(at(t, st.ref.quote).key).sticks.push(st);
       return;
     }
     const rp = parseReply(it.text);
     if (rp) {
       const t = resolveRef(rp.ref, items, idx);
       if (t) {
-        get(t.key).replies += 1;
-        quotes.set(it.key, { targetKey: t.key, text: plainOf(parseMessage(parseReply(t.text)?.rest ?? t.text).text).slice(0, 80) || '…', role: t.role });
+        const seg = at(t, rp.ref.quote);
+        get(seg.key).replies += 1;
+        quotes.set(it.key, { targetKey: t.key, seg: seg.seg, text: plainOf(seg.text).slice(0, 80) || '…', role: t.role });
       }
     }
   });
   return { decor, quotes, hidden };
 }
 
-// Everything in one reply thread: the original plus the messages replying to it.
-export function threadOf(items: Item[], targetKey: string): Item[] {
+// Everything in one reply thread: the original bubble plus the messages replying to it.
+export function threadOf(items: Item[], targetKey: string, seg?: number): Item[] {
   const root = items.find((i) => i.key === targetKey);
   if (!root) return [];
+  const segs = segmentsOf(root);
   const out = [root];
   items.forEach((it, idx) => {
     const rp = parseReply(it.text);
-    if (rp && resolveRef(rp.ref, items, idx)?.key === targetKey) out.push(it);
+    if (!rp || resolveRef(rp.ref, items, idx)?.key !== targetKey) return;
+    if (seg === undefined || segIndex(segs, rp.ref.quote) === seg) out.push(it);
   });
   return out;
 }
@@ -176,6 +199,7 @@ export function buildRows(items: Item[], now = Date.now(), reveal: Record<string
           type: 'bubble',
           key: `${it.key}-${idx}`,
           itemKey: it.key,
+          seg: idx,
           role: it.role,
           text: seg.text,
           big: emojiOnly(plainOf(seg.text)),
@@ -185,9 +209,9 @@ export function buildRows(items: Item[], now = Date.now(), reveal: Record<string
           fresh: it.fresh,
           failed: idx === segs.length - 1 ? it.error : undefined,
           quote: idx === 0 ? quotes.get(it.key) : undefined,
-          replies: idx === segs.length - 1 ? decor.get(it.key)?.replies || undefined : undefined,
-          tapbacks: idx === segs.length - 1 ? decor.get(it.key)?.tapbacks : undefined,
-          sticks: idx === segs.length - 1 ? decor.get(it.key)?.sticks : undefined,
+          replies: decor.get(`${it.key}:${idx}`)?.replies || undefined,
+          tapbacks: decor.get(`${it.key}:${idx}`)?.tapbacks,
+          sticks: decor.get(`${it.key}:${idx}`)?.sticks,
         });
       }
       prevRole = it.role;

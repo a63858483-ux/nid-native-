@@ -11,6 +11,8 @@ import type { Attachment } from '@/lib/api';
 import { inkOn, usePalette } from '@/lib/colors';
 import { EFFECTS, wrapSelection, type Effect } from '@/lib/rich';
 
+import { TextMenu } from '../../modules/nid-text-menu';
+
 const SPRING = { damping: 16, stiffness: 260, mass: 0.7 };
 
 export type Pending = {
@@ -41,9 +43,10 @@ export function Composer({
   const pal = usePalette();
   const [text, setText] = useState('');
   const [sentTick, setSentTick] = useState(0);
-  // Selection drives the format bar: B I U S and text effects wrap the selected words
-  // (or the whole message when nothing is selected), like Messages' text effects.
+  // Select words, then Text Effects in the system edit menu (native module) wraps them.
+  // Builds without that module fall back to a small bar shown while something is selected.
   const [focused, setFocused] = useState(false);
+  const [hasSel, setHasSel] = useState(false);
   const [fxOpen, setFxOpen] = useState(false);
   const sel = useRef({ start: 0, end: 0 });
   const input = useRef<TextInput>(null);
@@ -55,7 +58,15 @@ export function Composer({
     sel.current = r.sel;
     setFxOpen(false);
   };
-  const barVisible = focused && text.trim().length > 0;
+  const barVisible = !TextMenu && focused && hasSel;
+  useEffect(() => {
+    if (!TextMenu || !focused) return;
+    const sub = TextMenu.addListener('onTextEffect', (e) => {
+      sel.current = { start: e.start, end: e.end };
+      format(e.kind as Effect);
+    });
+    return () => sub.remove();
+  });
   const uploading = pending.some((p) => p.uploading);
   const ready = (text.trim().length > 0 || pending.length > 0) && !uploading;
   const show = useSharedValue(0);
@@ -197,6 +208,7 @@ export function Composer({
                 onBlur={() => setFocused(false)}
                 onSelectionChange={(e) => {
                   sel.current = e.nativeEvent.selection;
+                  setHasSel(e.nativeEvent.selection.end > e.nativeEvent.selection.start);
                 }}
                 placeholder={placeholder}
                 placeholderTextColor={ink2}

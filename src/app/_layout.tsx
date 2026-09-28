@@ -41,7 +41,8 @@ function Shell() {
         <Stack.Screen name="sheet/wallpaper" options={sheet([0.55, 1])} />
         <Stack.Screen name="sheet/name" options={sheet([0.4, 1])} />
         <Stack.Screen name="sheet/checklist" options={sheet([0.75, 1])} />
-        <Stack.Screen name="sheet/stickers" options={sheet([0.55, 1])} />
+        <Stack.Screen name="sheet/stickers" options={sheet([0.6, 1])} />
+        <Stack.Screen name="sheet/select" options={sheet([0.5, 1])} />
         <Stack.Screen name="sheet/thought" options={sheet([0.5, 1])} />
         <Stack.Screen name="thread/[key]" options={{ presentation: 'transparentModal', animation: 'fade', contentStyle: { backgroundColor: 'transparent' } }} />
       </Stack>

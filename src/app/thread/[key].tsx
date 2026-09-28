@@ -21,28 +21,30 @@ import { useChat } from '@/state/chat';
 // Messages' reply view: the original alone on a dimmed sheet, its replies under it,
 // and a composer that says Reply. ✕ takes you back.
 export default function ThreadScreen() {
-  const { key } = useLocalSearchParams<{ key: string }>();
+  const { key, seg } = useLocalSearchParams<{ key: string; seg?: string }>();
   const { prefs } = useApp();
   return (
     <WallpaperContext value={!!wallpaperUri(prefs.wallpaper)}>
-      <ThreadInner targetKey={key} />
+      <ThreadInner targetKey={key} seg={seg ? Number(seg) : undefined} />
     </WallpaperContext>
   );
 }
 
-function ThreadInner({ targetKey }: { targetKey: string }) {
+function ThreadInner({ targetKey, seg }: { targetKey: string; seg?: number }) {
   const insets = useSafeAreaInsets();
   const pal = usePalette();
   const { prefs } = useApp();
   const { items, send } = useChat();
   const [pending, setPending] = useState<Pending[]>([]);
-  const thread = useMemo(() => threadOf(items, targetKey), [items, targetKey]);
+  const thread = useMemo(() => threadOf(items, targetKey, seg), [items, targetKey, seg]);
   const root = thread[0];
   const ink = pal.wall || pal.dark ? '#fff' : pal.ink;
 
   const onSend = (text: string) => {
     if (!root) return;
-    const body = parseReply(root.text)?.rest ?? root.text;
+    const segs = segmentsOf(root);
+    const s = seg !== undefined && segs[seg]?.kind === 'text' ? segs[seg] : null;
+    const body = s && s.kind === 'text' ? s.text : (parseReply(root.text)?.rest ?? root.text);
     send(`${replyMarker(root.id, body)} ${text}`);
     setPending([]);
   };
@@ -70,7 +72,10 @@ function ThreadInner({ targetKey }: { targetKey: string }) {
 
       <ScrollView contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 90 }]} keyboardDismissMode="interactive">
         {thread.map((it, i) => {
-          const segs = segmentsOf(it).filter((s) => s.kind === 'text') as {
+          // the original shows only the bubble being replied to
+          const all = segmentsOf(it);
+          const picked = i === 0 && seg !== undefined && all[seg] ? [all[seg]] : all;
+          const segs = picked.filter((s) => s.kind === 'text') as {
             kind: 'text';
             text: string;
           }[];

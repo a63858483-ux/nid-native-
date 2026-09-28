@@ -14,10 +14,16 @@ import { stickerUrl } from '@/lib/stickers';
 export function Decorated({ mine, myColor, tapbacks, sticks, children }: { mine: boolean; myColor: string; tapbacks?: TapbackView[]; sticks?: Stick[]; children: ReactNode }) {
   const pal = usePalette();
   const [box, setBox] = useState({ w: 0, h: 0 });
-  const has = (tapbacks && tapbacks.length > 0) || (sticks && sticks.length > 0);
+  // A sticker hanging off the bubble's edge pushes the neighbours away, as in Messages.
+  let over = { top: tapbacks && tapbacks.length > 0 ? 14 : 0, bottom: 0 };
+  if (box.h > 0)
+    for (const s of sticks ?? []) {
+      const half = stickSize(s) / 2;
+      over = { top: Math.max(over.top, half - s.y * box.h), bottom: Math.max(over.bottom, s.y * box.h + half - box.h) };
+    }
   return (
     <View
-      style={[styles.wrap, mine ? styles.mine : styles.his, has && { marginTop: 14 }]}
+      style={[styles.wrap, mine ? styles.mine : styles.his, { marginTop: over.top, marginBottom: over.bottom }]}
       onLayout={(e) =>
         setBox({
           w: e.nativeEvent.layout.width,
@@ -40,7 +46,7 @@ export function Decorated({ mine, myColor, tapbacks, sticks, children }: { mine:
       {box.w > 0 &&
         sticks?.map((s, i) => {
           const url = s.what.startsWith('sticker:') ? stickerUrl(s.what.slice(8)) : null;
-          const size = url ? 64 : 40;
+          const size = stickSize(s);
           return (
             <View
               key={i}
@@ -55,13 +61,15 @@ export function Decorated({ mine, myColor, tapbacks, sticks, children }: { mine:
                   transform: [{ rotate: `${s.angle}deg` }],
                 },
               ]}>
-              {url ? <Image source={url} style={{ width: size, height: size }} contentFit="contain" /> : <Text style={{ fontSize: 34, lineHeight: 40 }}>{s.what}</Text>}
+              {url ? <Image source={url} style={{ width: size, height: size }} contentFit="contain" /> : <Text style={styles.stickEmoji}>{s.what}</Text>}
             </View>
           );
         })}
     </View>
   );
 }
+
+const stickSize = (s: Stick) => (s.what.startsWith('sticker:') ? 72 : 54);
 
 // The little quoted bubble above a reply, with Messages' curved connector down to it.
 export function ReplyQuote({ quote, replyMine, replies, onOpen }: { quote: Quote; replyMine: boolean; replies?: number; onOpen: () => void }) {
@@ -129,6 +137,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0,0,0,0.15)',
   },
   tapbackEmoji: { fontSize: 14, lineHeight: 18 },
+  stickEmoji: { fontSize: 44, lineHeight: 54 },
   stick: {
     position: 'absolute',
     alignItems: 'center',

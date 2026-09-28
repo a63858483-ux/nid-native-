@@ -59,10 +59,11 @@ export function resolveRef<T extends { id?: number; text: string; role: string }
     if (hit) return hit;
   }
   if (!r.quote) return undefined;
-  const q = r.quote.replace(/\s+/g, '');
+  const flat = (t: string) => t.replace(/\s+/g, '').replace(/"/g, '”');
+  const q = flat(r.quote);
   for (let i = Math.min(before, items.length) - 1; i >= 0; i--) {
     const it = items[i];
-    if (it.text.replace(/\s+/g, '').includes(q)) return it;
+    if (flat(it.text).includes(q)) return it;
   }
   return undefined;
 }
