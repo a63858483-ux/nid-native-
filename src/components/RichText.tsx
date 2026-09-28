@@ -6,15 +6,20 @@ import { parseRich, type Effect, type Run } from '@/lib/rich';
 
 // Text with **bold** / _italic_ / __underline__ / ~~strike~~ and [fx:…] effects,
 // modelled on Messages' text effects: the marked words move, the rest of the line sits still.
-export function RichText({ text, style, selectable }: { text: string; style: StyleProp<TextStyle>; selectable?: boolean }) {
+// `fxOnly` + `loop` is the composer's live preview layer: only the moving words show, over and over.
+export function RichText({ text, style, selectable, fxOnly, loop }: { text: string; style: StyleProp<TextStyle>; selectable?: boolean; fxOnly?: boolean; loop?: boolean }) {
   const runs = parseRich(text);
   return (
     <Text selectable={selectable} style={style}>
       {runs.map((r, i) =>
-        r.fx ? (
-          <FxRun key={i} run={r} style={style} />
+        r.fx && fxOnly && STILL.includes(r.fx) ? (
+          <Text key={i} style={[runStyle(r), { fontSize: fxSize(style, r.fx) }, styles.hidden]}>
+            {r.text}
+          </Text>
+        ) : r.fx ? (
+          <FxRun key={i} run={r} style={style} loop={loop} />
         ) : (
-          <Text key={i} style={runStyle(r)}>
+          <Text key={i} style={[runStyle(r), fxOnly && styles.hidden]}>
             {r.text}
           </Text>
         ),
@@ -30,14 +35,22 @@ const runStyle = (r: Run): TextStyle => ({
 });
 
 const PER_CHAR: Effect[] = ['ripple', 'jitter'];
+// big/small are drawn by the composer field itself; the preview layer only keeps their room
+const STILL: Effect[] = ['big', 'small'];
+export const fxSize = (style: StyleProp<TextStyle>, fx: Effect) => (StyleSheet.flatten(style)?.fontSize ?? 17) * (fx === 'big' ? 1.45 : fx === 'small' ? 0.78 : 1);
 
 // Like Messages, an effect plays when the bubble comes on screen, then rests; tap to replay.
-function FxRun({ run, style }: { run: Run; style: StyleProp<TextStyle> }) {
+function FxRun({ run, style, loop }: { run: Run; style: StyleProp<TextStyle>; loop?: boolean }) {
   const fx = run.fx!;
   const [tick, setTick] = useState(0);
   const replay = () => setTick((t) => t + 1);
+  useEffect(() => {
+    if (!loop) return;
+    const t = setInterval(() => setTick((n) => n + 1), 2600);
+    return () => clearInterval(t);
+  }, [loop]);
   const flat = StyleSheet.flatten(style) || {};
-  const size = (flat.fontSize ?? 17) * (fx === 'big' ? 1.45 : fx === 'small' ? 0.78 : 1);
+  const size = fxSize(style, fx);
   const lh = (flat.lineHeight ?? 22) * (fx === 'big' ? 1.35 : 1);
   const base: TextStyle = { ...flat, ...runStyle(run), fontSize: size, lineHeight: lh };
   if (PER_CHAR.includes(fx)) {
@@ -115,3 +128,5 @@ function Piece({ fx, index, style, tick, onTap, children }: { fx: Effect; index:
     </Pressable>
   );
 }
+
+const styles = StyleSheet.create({ hidden: { color: 'transparent' } });

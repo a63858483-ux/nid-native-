@@ -9,7 +9,8 @@ import * as Haptics from 'expo-haptics';
 import { Glass } from './Glass';
 import type { Attachment } from '@/lib/api';
 import { inkOn, usePalette } from '@/lib/colors';
-import { piecesOf, serialize, shiftSpans, toggleSpan, type Kind, type Span } from '@/lib/compose';
+import { RichText, fxSize } from './RichText';
+import { isFormat, piecesOf, serialize, shiftSpans, toggleSpan, type Kind, type Span } from '@/lib/compose';
 import { EFFECTS, type Effect } from '@/lib/rich';
 
 import { TextMenu } from '../../modules/nid-text-menu';
@@ -18,7 +19,8 @@ const SPRING = { damping: 16, stiffness: 260, mass: 0.7 };
 const MIN_H = 34;
 const MAX_H = 132;
 
-function pieceStyle(kinds: Kind[], fxInk: string): TextStyle | undefined {
+// Moving effects are drawn by the preview layer on top, so the field leaves those words invisible.
+function pieceStyle(kinds: Kind[]): TextStyle | undefined {
   if (!kinds.length) return undefined;
   const has = (k: Kind) => kinds.includes(k);
   const fx = kinds.find((k) => (EFFECTS as readonly string[]).includes(k)) as Effect | undefined;
@@ -26,8 +28,8 @@ function pieceStyle(kinds: Kind[], fxInk: string): TextStyle | undefined {
     fontWeight: has('bold') ? '700' : undefined,
     fontStyle: has('italic') ? 'italic' : undefined,
     textDecorationLine: has('underline') && has('strike') ? 'underline line-through' : has('underline') ? 'underline' : has('strike') ? 'line-through' : undefined,
-    fontSize: fx === 'big' ? 23 : fx === 'small' ? 13 : undefined,
-    color: fx && fx !== 'big' && fx !== 'small' ? fxInk : undefined,
+    fontSize: fx === 'big' || fx === 'small' ? fxSize(styles.input, fx) : undefined,
+    color: fx && fx !== 'big' && fx !== 'small' ? 'transparent' : undefined,
   };
 }
 
@@ -113,8 +115,7 @@ export function Composer({
   const ink2 = pal.wall ? 'rgba(255,255,255,0.6)' : pal.ink2;
   const sendColor = myColor === 'glass' ? pal.blue : myColor;
   const sendInk = myColor === 'glass' ? '#fff' : inkOn(sendColor);
-  // moving effects can't play inside the field; their words show tinted until sent
-  const fxInk = pal.wall || pal.dark ? '#64D2FF' : pal.blue;
+  const moving = spans.some((sp) => !isFormat(sp.kind) && sp.kind !== 'big' && sp.kind !== 'small');
   const submit = () => {
     if (!ready) return;
     setSentTick((n) => n + 1);
@@ -212,11 +213,16 @@ export function Composer({
                 // Fabric keeps a cleared multiline field at its old height; size it ourselves.
                 style={[styles.input, { color: ink, height: text ? Math.min(MAX_H, Math.max(MIN_H, contentH)) : MIN_H }]}>
                 {piecesOf(text, spans).map((pc, i) => (
-                  <Text key={i} style={pieceStyle(pc.kinds, fxInk)}>
+                  <Text key={i} style={pieceStyle(pc.kinds)}>
                     {pc.text}
                   </Text>
                 ))}
               </TextInput>
+              {moving && (
+                <View pointerEvents="none" style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
+                  <RichText text={serialize(text, spans)} style={[styles.input, { color: ink }]} fxOnly loop />
+                </View>
+              )}
               <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.morph, { backgroundColor: sendColor }, morphSt]}>
                 <Text numberOfLines={5} style={[styles.input, { color: sendInk }]}>
                   {text}
