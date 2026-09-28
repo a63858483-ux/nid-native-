@@ -1,4 +1,4 @@
-import { SymbolView } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
@@ -7,7 +7,7 @@ import { TAIL_W } from './bubble-path';
 import { usePalette } from '@/lib/colors';
 
 
-export function ThoughtLine({ label, live, onPress }: { label: string; live: boolean; onPress: () => void }) {
+export function ThoughtLine({ label, live, icon, onPress }: { label: string; live: boolean; icon?: string; onPress: () => void }) {
   const pal = usePalette();
   const pulse = useSharedValue(1);
   useEffect(() => {
@@ -17,7 +17,7 @@ export function ThoughtLine({ label, live, onPress }: { label: string; live: boo
   return (
     <Pressable onPress={onPress} disabled={live} hitSlop={8} style={({ pressed }) => [styles.row, pressed && { opacity: 0.5 }]}>
       <Animated.View style={st}>
-        <SymbolView name="clock" size={13} tintColor={pal.meta} />
+        <SymbolView name={(icon as SFSymbol) || 'clock'} size={13} tintColor={pal.meta} />
       </Animated.View>
       <Text style={[styles.label, { color: pal.meta }]}>{label}</Text>
       {!live && <SymbolView name="chevron.right" size={10} weight="semibold" tintColor={pal.meta} />}

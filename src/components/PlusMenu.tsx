@@ -6,6 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } fr
 import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
+import { Glass } from './Glass';
 import { usePalette } from '@/lib/colors';
 
 export type PlusAction = 'camera' | 'photos' | 'files' | 'model' | 'checklist' | 'bubble' | 'wallpaper';
@@ -22,18 +23,20 @@ const ITEMS: { key: PlusAction; label: string; icon: SFSymbol; color: string }[]
 
 const ROW = 66;
 
-// iMessage's plus panel: anchored above the composer, rides up with the keyboard
-// (the keyboard stays), and the row list scrolls if there is not enough room.
+// Messages' plus panel: a fixed-height sheet growing out of the + button. With the
+// keyboard closed it sits just above the home indicator, covering the composer;
+// with the keyboard open it stays over the keyboard (the keyboard does not hide).
+// The + itself turns into ✕ and stays on top.
 export function PlusMenu({
   open,
-  bottom,
+  bottomInset,
   topInset,
   note,
   onClose,
   onPick,
 }: {
   open: boolean;
-  bottom: number;
+  bottomInset: number;
   topInset: number;
   note?: string;
   onClose: () => void;
@@ -48,14 +51,18 @@ export function PlusMenu({
   }, [open, p]);
 
   const wanted = ITEMS.length * ROW + 16;
+  const bottom = bottomInset + 8;
   const panel = useAnimatedStyle(() => {
-    const room = screenH - topInset - bottom + kb.value - 8;
+    const lift = -kb.value * 0.45;
+    const room = screenH - topInset - bottom - lift - 8;
     return {
       opacity: Math.min(1, p.value * 1.6),
       height: Math.max(ROW * 3, Math.min(wanted, room)),
-      transform: [{ translateY: kb.value + (1 - p.value) * 16 }, { scale: 0.55 + 0.45 * p.value }],
+      transform: [{ translateY: -lift + (1 - p.value) * 16 }, { scale: 0.55 + 0.45 * p.value }],
     };
   });
+  // the ✕ rides with the composer, which the sticky view lifts by the full keyboard height
+  const closeSt = useAnimatedStyle(() => ({ opacity: p.value, transform: [{ translateY: kb.value + (kb.value < 0 ? bottomInset - 6 : 0) }] }));
   const veil = useAnimatedStyle(() => ({ opacity: p.value }));
   const ink = pal.chrome ? '#FFFFFF' : pal.ink;
 
@@ -87,6 +94,13 @@ export function PlusMenu({
           </ScrollView>
         </View>
       </Animated.View>
+      <Animated.View style={[styles.close, { bottom: bottomInset + 6 }, closeSt]}>
+        <Pressable onPress={onClose} accessibilityLabel="Close">
+          <Glass interactive tint={pal.wall ? 'rgba(30,30,32,0.5)' : undefined} style={styles.closeBtn}>
+            <SymbolView name="xmark" size={18} weight="medium" tintColor={pal.wall ? '#fff' : pal.ink} />
+          </Glass>
+        </Pressable>
+      </Animated.View>
     </View>
   );
 }
@@ -101,4 +115,6 @@ const styles = StyleSheet.create({
   icon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   label: { fontSize: 21, fontWeight: '500', letterSpacing: -0.2 },
   note: { marginLeft: 'auto', fontSize: 13 },
+  close: { position: 'absolute', left: 12 },
+  closeBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
 });

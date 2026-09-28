@@ -14,7 +14,11 @@ export type Message = {
   origin: string | null;
   activity: unknown;
   seg?: number;
+  traces?: Trace[];
+  inside?: Inside[];
 };
+export type Trace = { type: string; name?: string; input?: unknown };
+export type Inside = { tone?: string; text: string };
 
 export type Session = { conv_id: string; title: string; last_modified: string | number };
 
@@ -82,6 +86,7 @@ export type StreamHandlers = {
   onConversation?: (d: { conversation_id: string; user_message_id?: number }) => void;
   onThinking?: (text: string) => void;
   onDelta?: (text: string) => void;
+  onToolUse?: (d: { name: string; input: unknown }) => void;
   onDone?: (d: { assistant_message_id?: number; conversation_id?: string; drop_row?: boolean }) => void;
   onError?: (message: string) => void;
 };
@@ -108,6 +113,7 @@ export async function streamChat(body: ChatBody, h: StreamHandlers, signal?: Abo
       if (event === 'conversation') h.onConversation?.(data);
       else if (event === 'thinking') h.onThinking?.(data.text ?? '');
       else if (event === 'delta') h.onDelta?.(data.text ?? '');
+      else if (event === 'tool_use') h.onToolUse?.({ name: data.name ?? '', input: data.input });
       else if (event === 'done') {
         finished = true;
         h.onDone?.(data);

@@ -9,7 +9,7 @@ import { KeyboardChatScrollView, KeyboardStickyView } from 'react-native-keyboar
 import Animated, { interpolate, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Bubble, FileBubble, PhotoBubble } from '@/components/Bubble';
+import { Bubble, FileBubble, InsideBubble, PhotoBubble } from '@/components/Bubble';
 import { ChatHeader, EdgeBlur, HEADER_H } from '@/components/ChatHeader';
 import { Composer, type Pending } from '@/components/Composer';
 import { PlusMenu, type PlusAction } from '@/components/PlusMenu';
@@ -71,9 +71,15 @@ function ChatScreenInner() {
   const [composerH, setComposerH] = useState(60);
   const [flash, setFlash] = useState<string | null>(null);
   const [pending, setPending] = useState<Pending[]>([]);
+  const [now, setNow] = useState(() => Date.now());
   const list = useRef<FlatList<Row>>(null);
 
-  const rows = useMemo(() => buildRows(items).reverse(), [items]);
+  // Time labels (Today / Yesterday / weekday) move on their own as the clock does.
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+  const rows = useMemo(() => buildRows(items, now).reverse(), [items, now]);
   const wall = wallpaperUri(prefs.wallpaper);
 
   // Rounded corners + shadow as the drawer pushes the page aside.
@@ -178,11 +184,27 @@ function ChatScreenInner() {
 
   const renderItem = useCallback(
     ({ item }: { item: Row }) => {
-      if (item.type === 'divider') return <Text style={[styles.divider, { color: pal.meta }, pal.wall && styles.shadow]}>{item.label}</Text>;
+      if (item.type === 'divider') {
+        const [day, ...rest] = item.label.split(' ');
+        const time = rest.pop();
+        const dayText = [day, ...rest].join(' ');
+        return (
+          <Text style={[styles.divider, { color: pal.meta }, pal.wall && styles.shadow]}>
+            <Text style={{ fontWeight: '700' }}>{dayText}</Text> {time}
+          </Text>
+        );
+      }
+      if (item.type === 'inside') {
+        return (
+          <Animated.View entering={item.fresh ? replyEnter : undefined} style={item.gapAbove ? styles.gap : styles.tight}>
+            <InsideBubble tone={item.item.tone} text={item.item.text} />
+          </Animated.View>
+        );
+      }
       if (item.type === 'typing') {
         return (
           <View style={styles.gap}>
-            {item.thought && <ThoughtLine label={item.thought.label} live={item.thought.live} onPress={() => {}} />}
+            {item.thought && <ThoughtLine label={item.thought.label} live={item.thought.live} icon={item.thought.icon} onPress={() => {}} />}
             <Typing />
           </View>
         );
@@ -204,7 +226,7 @@ function ChatScreenInner() {
           entering={item.fresh ? (mine ? sendEnter : replyEnter) : undefined}
           style={[item.gapAbove ? styles.gap : styles.tight, flash === item.key && styles.flash]}>
           {item.thought && (
-            <ThoughtLine label={item.thought.label} live={item.thought.live} onPress={() => router.push({ pathname: '/sheet/thought', params: { key: item.itemKey } })} />
+            <ThoughtLine label={item.thought.label} live={item.thought.live} icon={item.thought.icon} onPress={() => router.push({ pathname: '/sheet/thought', params: { key: item.itemKey } })} />
           )}
           <Bubble role={item.role} text={item.text} tail={item.tail} myColor={prefs.bubble} />
           {item.receipt ? <Text style={[styles.receipt, { color: pal.meta }, pal.wall && styles.shadow]}>{item.receipt}</Text> : null}
@@ -239,8 +261,6 @@ function ChatScreenInner() {
 
       <ChatHeader name={prefs.name} onMenu={() => nav.openDrawer()} onName={() => router.push('/sheet/name')} onCall={() => showToast('Calls come in a later step')} />
 
-      <PlusMenu open={plusOpen} bottom={insets.bottom + composerH + 6} topInset={insets.top + HEADER_H} note={`${MODEL_LABEL[prefs.model] ?? 'More'} · ${prefs.effort}`} onClose={() => setPlusOpen(false)} onPick={pick} />
-
       <KeyboardStickyView offset={{ closed: 0, opened: insets.bottom - 6 }} style={styles.dock}>
         <View onLayout={(e) => setComposerH(e.nativeEvent.layout.height)} style={{ paddingBottom: insets.bottom + 6 }}>
           <Composer
@@ -256,13 +276,15 @@ function ChatScreenInner() {
           />
         </View>
       </KeyboardStickyView>
+
+      <PlusMenu open={plusOpen} bottomInset={insets.bottom} topInset={insets.top + HEADER_H} note={`${MODEL_LABEL[prefs.model] ?? 'More'} · ${prefs.effort}`} onClose={() => setPlusOpen(false)} onPick={pick} />
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   page: { flex: 1, overflow: 'hidden', borderCurve: 'continuous' },
-  divider: { alignSelf: 'center', fontSize: 11.5, fontWeight: '600', paddingTop: 16, paddingBottom: 8 },
+  divider: { alignSelf: 'center', fontSize: 11.5, fontWeight: '500', paddingTop: 16, paddingBottom: 8 },
   gap: { marginTop: 10 },
   tight: { marginTop: 4 },
   flash: { opacity: 0.55 },

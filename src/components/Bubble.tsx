@@ -58,6 +58,17 @@ export function Bubble({ role, text, tail, myColor }: Props) {
   );
 }
 
+// 内心槽: what he thought on a wake turn, shown as a small quiet bubble.
+export function InsideBubble({ tone, text }: { tone?: string; text: string }) {
+  const pal = usePalette();
+  return (
+    <View style={[styles.inside, styles.his, { backgroundColor: pal.hisFill }]}>
+      {tone ? <Text style={[styles.insideTone, { color: pal.hisInk }]}>心里 · {tone}</Text> : null}
+      <Text style={[styles.insideText, { color: pal.hisInk }]}>{text}</Text>
+    </View>
+  );
+}
+
 const MAX_IMG = 240;
 
 export function PhotoBubble({ convId, att, mine }: { convId: string; att: Attachment; mine: boolean }) {
@@ -106,4 +117,7 @@ const styles = StyleSheet.create({
   fileIcon: { width: 34, height: 42, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
   fileName: { fontSize: 15, fontWeight: '600' },
   fileMeta: { fontSize: 12, opacity: 0.65, marginTop: 2, fontVariant: ['tabular-nums'] },
+  inside: { maxWidth: '82%', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7, borderCurve: 'continuous' },
+  insideTone: { fontSize: 10.5, fontWeight: '600', opacity: 0.6, marginBottom: 2, letterSpacing: 0.3 },
+  insideText: { fontSize: 13.5, lineHeight: 18, opacity: 0.92 },
 });

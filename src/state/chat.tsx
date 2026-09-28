@@ -17,6 +17,9 @@ export type Item = {
   status?: 'sending' | 'streaming' | 'failed';
   thinkMs?: number;
   attachments?: api.Attachment[];
+  traces?: api.Trace[];
+  inside?: api.Inside[];
+  origin?: string | null;
   fresh?: boolean; // created in this session, animate its entrance
   error?: string;
 };
@@ -40,10 +43,13 @@ const fromMessage = (m: api.Message): Item => ({
   thinking: m.thinking || '',
   ts: m.timestamp,
   attachments: (m.attachments as api.Attachment[] | undefined)?.filter((a) => a && a.path) ?? [],
+  traces: m.traces ?? [],
+  inside: m.inside ?? [],
+  origin: m.origin,
 });
 
 const visible = (m: api.Message) =>
-  (m.role === 'user' || m.role === 'assistant') && !m.activity && m.origin !== 'toy' && m.origin !== 'call_marker';
+  (m.role === 'user' || m.role === 'assistant') && !m.activity && m.origin !== 'toy' && m.origin !== 'call_marker' && (!!m.text || (m.inside?.length ?? 0) > 0 || (m.attachments?.length ?? 0) > 0);
 
 function reducer(s: State, a: Action): State {
   switch (a.t) {
@@ -196,6 +202,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             if (thinkStart) dispatch({ t: 'patch', key: aKey, patch: { thinkMs: Date.now() - thinkStart } });
           }
           dispatch({ t: 'patch', key: aKey, patch: (i) => ({ text: i.text + t }) });
+        },
+        onToolUse: (d: { name: string; input: unknown }) => {
+          ensureReply();
+          dispatch({ t: 'patch', key: aKey, patch: (i) => ({ traces: [...(i.traces ?? []), { type: 'tool_use', name: d.name, input: d.input }] }) });
         },
       };
 
