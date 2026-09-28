@@ -1,5 +1,6 @@
 import type { Attachment, Inside } from './api';
 import { parseReply, parseStick, parseTapback, resolveRef, type Stick } from './markers';
+import { plainOf } from './rich';
 import { emojiOnly, parseMessage, splitBubbles, type Media } from './text';
 import { collapseSteps } from './traces';
 import type { Item } from '@/state/chat';
@@ -112,7 +113,7 @@ export function decorate(items: Item[]) {
       const t = resolveRef(rp.ref, items, idx);
       if (t) {
         get(t.key).replies += 1;
-        quotes.set(it.key, { targetKey: t.key, text: parseMessage(parseReply(t.text)?.rest ?? t.text).text.slice(0, 80) || '…', role: t.role });
+        quotes.set(it.key, { targetKey: t.key, text: plainOf(parseMessage(parseReply(t.text)?.rest ?? t.text).text).slice(0, 80) || '…', role: t.role });
       }
     }
   });
@@ -177,7 +178,7 @@ export function buildRows(items: Item[], now = Date.now(), reveal: Record<string
           itemKey: it.key,
           role: it.role,
           text: seg.text,
-          big: emojiOnly(seg.text),
+          big: emojiOnly(plainOf(seg.text)),
           tail: true,
           gapAbove,
           thought: idx === 0 ? thought : undefined,

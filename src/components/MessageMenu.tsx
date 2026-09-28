@@ -77,7 +77,17 @@ export function MessageMenu({
 
       <Animated.View entering={ZoomIn.springify().damping(16)} style={[styles.menu, { top: top + rect.h + 10, backgroundColor: cardBg }, side]}>
         {items.map((it, i) => (
-          <Pressable key={it.key} onPress={() => onAction(it.key)} style={({ pressed }) => [styles.item, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: pal.line }, pressed && { backgroundColor: 'rgba(120,120,128,0.15)' }]}>
+          <Pressable
+            key={it.key}
+            onPress={() => onAction(it.key)}
+            style={({ pressed }) => [
+              styles.item,
+              i > 0 && {
+                borderTopWidth: StyleSheet.hairlineWidth,
+                borderTopColor: pal.line,
+              },
+              pressed && { backgroundColor: 'rgba(120,120,128,0.15)' },
+            ]}>
             <SymbolView name={it.icon} size={20} tintColor={ink} />
             <Text style={[styles.itemText, { color: ink }]}>{it.label}</Text>
           </Pressable>
@@ -88,11 +98,45 @@ export function MessageMenu({
 }
 
 const styles = StyleSheet.create({
-  bar: { position: 'absolute', height: 52, borderRadius: 26, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 2, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } },
-  tb: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  bar: {
+    position: 'absolute',
+    height: 52,
+    borderRadius: 26,
+    paddingHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+  },
+  tb: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   tbText: { fontSize: 24 },
   bubble: { position: 'absolute' },
-  menu: { position: 'absolute', width: 250, borderRadius: 18, overflow: 'hidden', borderCurve: 'continuous', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } },
-  item: { height: 52, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', gap: 14 },
+  menu: {
+    position: 'absolute',
+    width: 250,
+    borderRadius: 18,
+    overflow: 'hidden',
+    borderCurve: 'continuous',
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+  },
+  item: {
+    height: 52,
+    paddingHorizontal: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
   itemText: { fontSize: 17 },
 });

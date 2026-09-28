@@ -37,7 +37,7 @@ export function parseMessage(raw: string): { text: string; media: Media[] } {
     media.push({ kind: 'card', icon: 'letter', title: '写了封信', sub: title });
     return '';
   });
-  t = t.replace(/\*\*(.+?)\*\*/g, '$1').replace(/(^|\s)\*(\S.*?)\*(?=\s|$)/g, '$1$2');
+  // **bold** / _italic_ etc. stay in: RichText renders them.
   t = t.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
   return { text: t, media };
 }

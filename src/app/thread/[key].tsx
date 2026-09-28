@@ -70,7 +70,10 @@ function ThreadInner({ targetKey }: { targetKey: string }) {
 
       <ScrollView contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 90 }]} keyboardDismissMode="interactive">
         {thread.map((it, i) => {
-          const segs = segmentsOf(it).filter((s) => s.kind === 'text') as { kind: 'text'; text: string }[];
+          const segs = segmentsOf(it).filter((s) => s.kind === 'text') as {
+            kind: 'text';
+            text: string;
+          }[];
           const showTime = i === 0 || new Date(it.ts).getTime() - new Date(thread[i - 1].ts).getTime() > 3600_000;
           return (
             <View key={it.key} style={i === 1 ? { marginTop: 18 } : undefined}>
@@ -91,7 +94,15 @@ function ThreadInner({ targetKey }: { targetKey: string }) {
 
       <KeyboardStickyView offset={{ closed: 0, opened: insets.bottom - 6 }} style={styles.dock}>
         <View style={{ paddingBottom: insets.bottom + 6 }}>
-          <Composer myColor={prefs.bubble} plusOpen={false} pending={pending} onRemovePending={(l) => setPending((c) => c.filter((p) => p.local !== l))} onPlus={() => {}} onSend={onSend} placeholder="Reply" />
+          <Composer
+            myColor={prefs.bubble}
+            plusOpen={false}
+            pending={pending}
+            onRemovePending={(l) => setPending((c) => c.filter((p) => p.local !== l))}
+            onPlus={() => {}}
+            onSend={onSend}
+            placeholder="Reply"
+          />
         </View>
       </KeyboardStickyView>
     </View>
@@ -100,13 +111,45 @@ function ThreadInner({ targetKey }: { targetKey: string }) {
 
 const styles = StyleSheet.create({
   wrap: { flex: 1 },
-  head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 12 },
+  head: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingHorizontal: 12,
+  },
   who: { alignItems: 'center', marginTop: -2 },
   avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#ddd' },
-  name: { height: 24, borderRadius: 12, paddingLeft: 11, paddingRight: 9, flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: -3 },
+  name: {
+    height: 24,
+    borderRadius: 12,
+    paddingLeft: 11,
+    paddingRight: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: -3,
+  },
   nameText: { fontSize: 12.5, fontWeight: '500' },
-  circle: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  list: { paddingHorizontal: 12, paddingTop: 40, flexGrow: 1, justifyContent: 'flex-end' },
-  divider: { alignSelf: 'center', fontSize: 11.5, fontWeight: '500', paddingTop: 16, paddingBottom: 6, color: '#fff' },
+  circle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  list: {
+    paddingHorizontal: 12,
+    paddingTop: 40,
+    flexGrow: 1,
+    justifyContent: 'flex-end',
+  },
+  divider: {
+    alignSelf: 'center',
+    fontSize: 11.5,
+    fontWeight: '500',
+    paddingTop: 16,
+    paddingBottom: 6,
+    color: '#fff',
+  },
   dock: { position: 'absolute', left: 0, right: 0, bottom: 0 },
 });

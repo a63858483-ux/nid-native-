@@ -7,6 +7,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { bubblePath, TAIL_W } from './bubble-path';
+import { RichText } from './RichText';
 import * as api from '@/lib/api';
 import { type Attachment, attachmentUrl, authHeaders } from '@/lib/api';
 import { API_BASE, FROSTED_HIS_BUBBLE } from '@/lib/config';
@@ -65,9 +66,7 @@ function TextBubble({ role, text, tail, myColor, boxed }: Props) {
         </Svg>
       )}
       <View onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })} style={styles.pad}>
-        <Text selectable style={[styles.text, { color: ink }]}>
-          {text}
-        </Text>
+        <RichText selectable text={text} style={[styles.text, { color: ink }]} />
       </View>
     </View>
   );
