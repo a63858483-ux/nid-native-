@@ -32,8 +32,10 @@ export default function ModelSheet() {
   const { prefs, setPrefs } = useApp();
   const [page, setPage] = useState<'main' | 'effort' | 'more'>('main');
   const [dir, setDir] = useState<'in' | 'out'>('in');
+  const [navigated, setNavigated] = useState(false);
   const go = (p: typeof page) => {
     setDir(p === 'main' ? 'out' : 'in');
+    setNavigated(true);
     setPage(p);
   };
   const choose = (patch: Partial<Prefs>, close: boolean) => {
@@ -43,7 +45,7 @@ export default function ModelSheet() {
     else go('main');
   };
   const current = MODELS.find((m) => m.id === prefs.model);
-  const enter = (dir === 'in' ? SlideInRight : SlideInLeft).springify().damping(20);
+  const enter = navigated ? (dir === 'in' ? SlideInRight : SlideInLeft).springify().damping(20) : undefined;
 
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: 30 }}>

@@ -74,6 +74,7 @@ export type ChatBody = {
   effort: string;
   extended?: boolean;
   seg?: number;
+  attachments?: string[];
 };
 
 export type StreamHandlers = {
@@ -129,3 +130,50 @@ export async function search(q: string) {
   const qs = new URLSearchParams({ q, limit: '60' });
   return ((await call(`/api/search/messages?${qs}`)) as { items: SearchHit[] }).items;
 }
+
+/* ── checklist ── */
+export type ChecklistItem = {
+  id: number;
+  body: string;
+  is_fixed: number;
+  done: number;
+  done_at: number | null;
+  created_by: string;
+  trigger_at: number | null;
+  created_at: number;
+};
+export const checklistList = async () => ((await call('/api/checklist')) as { items: ChecklistItem[] }).items;
+export const checklistAdd = (body: string, opts: { is_fixed?: boolean; at?: string } = {}) =>
+  call('/api/checklist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body, created_by: 'user', ...opts }) }) as Promise<ChecklistItem>;
+export const checklistToggle = (id: number, done: boolean) =>
+  call(`/api/checklist/${id}/toggle`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ done }) });
+export const checklistDelete = (id: number) => call(`/api/checklist/${id}`, { method: 'DELETE' });
+
+/* ── sidebar: channel / background / quota ── */
+export type ChannelState = { channel: 'max' | 'api'; model: string; models: { id: string; label: string }[] };
+export const channelGet = () => call('/api/channel') as Promise<ChannelState>;
+export const channelSet = (channel: 'max' | 'api', model?: string) =>
+  call('/api/channel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ channel, model }) }) as Promise<ChannelState>;
+export const backgroundGet = async () => !!((await call('/api/background')) as { enabled: boolean }).enabled;
+export const backgroundSet = (enabled: boolean) =>
+  call('/api/background', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled }) });
+export type QuotaLimit = { kind: string; label: string; percent: number | null; resets_at: string | null };
+export const quotaGet = () => call('/api/quota') as Promise<{ limits: QuotaLimit[]; error?: string }>;
+
+/* ── uploads ── */
+export type Attachment = { name: string; path: string; mime?: string; size?: number; is_image?: boolean };
+export async function upload(convId: string | null, files: { uri: string; name: string; mime: string }[]) {
+  const form = new FormData();
+  if (convId) form.append('conversation_id', convId);
+  for (const f of files) form.append('files', { uri: f.uri, name: f.name, type: f.mime } as unknown as Blob);
+  const res = await fetch(`${API_BASE}/api/upload`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form });
+  if (res.status === 401) throw new AuthError('unauthorized');
+  if (!res.ok) throw new Error(`upload ${res.status}`);
+  return (await res.json()) as { conversation_id: string; attachments: Attachment[] };
+}
+// Uploaded files are served per conversation; the server stores the absolute path.
+export function attachmentUrl(convId: string, a: Attachment) {
+  const file = a.path.split('/').pop() ?? '';
+  return `${API_BASE}/api/uploads/${encodeURIComponent(convId)}/${encodeURIComponent(file)}`;
+}
+export const authHeaders = () => ({ Authorization: `Bearer ${token}` });

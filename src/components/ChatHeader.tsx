@@ -63,14 +63,14 @@ export function ChatHeader({ name, onMenu, onName, onCall }: { name: string; onM
   );
 }
 
-export const HEADER_H = 112;
+export const HEADER_H = 104;
 
 const styles = StyleSheet.create({
   edge: { position: 'absolute', left: 0, right: 0 },
   bar: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 12 },
   circle: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  who: { alignItems: 'center', gap: 6, marginTop: -4 },
-  avatar: { width: 54, height: 54, borderRadius: 27, backgroundColor: '#ddd' },
-  name: { height: 28, borderRadius: 14, paddingLeft: 12, paddingRight: 10, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  nameText: { fontSize: 13.5, fontWeight: '500' },
+  who: { alignItems: 'center', marginTop: -2 },
+  avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#ddd' },
+  name: { height: 24, borderRadius: 12, paddingLeft: 11, paddingRight: 9, flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: -3 },
+  nameText: { fontSize: 12.5, fontWeight: '500' },
 });

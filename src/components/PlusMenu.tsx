@@ -7,13 +7,14 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } fr
 import { Glass } from './Glass';
 import { usePalette } from '@/lib/colors';
 
-export type PlusAction = 'photos' | 'model' | 'checklist' | 'toy' | 'bubble' | 'wallpaper';
+export type PlusAction = 'camera' | 'photos' | 'files' | 'model' | 'checklist' | 'bubble' | 'wallpaper';
 
 const ITEMS: { key: PlusAction; label: string; icon: SFSymbol; color: string; note?: string }[] = [
-  { key: 'photos', label: 'Photos & Files', icon: 'photo.on.rectangle', color: '#FF7A93' },
+  { key: 'camera', label: 'Camera', icon: 'camera.fill', color: '#5E5E62' },
+  { key: 'photos', label: 'Photos', icon: 'photo.on.rectangle', color: '#FF7A93' },
+  { key: 'files', label: 'Files', icon: 'folder.fill', color: '#3B82F6' },
   { key: 'model', label: 'Model', icon: 'slider.horizontal.3', color: '#3A3A3C' },
   { key: 'checklist', label: 'Checklist', icon: 'checklist', color: '#F2A516' },
-  { key: 'toy', label: 'Toy', icon: 'lock.fill', color: '#9160EB' },
   { key: 'bubble', label: 'Bubble', icon: 'paintpalette.fill', color: '#F58AA4' },
   { key: 'wallpaper', label: 'Wallpaper', icon: 'photo.artframe', color: '#4F9F7A' },
 ];
@@ -56,7 +57,7 @@ export function PlusMenu({
                 Haptics.selectionAsync();
                 onPick(it.key);
               }}
-              style={({ pressed }) => [styles.item, pressed && { backgroundColor: pal.fill }, (i === 1 || i === 4) && styles.gap]}>
+              style={({ pressed }) => [styles.item, pressed && { backgroundColor: pal.fill }, (i === 3 || i === 5) && styles.gap]}>
               <View style={[styles.icon, { backgroundColor: it.color }]}>
                 <SymbolView name={it.icon} size={20} tintColor="#fff" />
               </View>

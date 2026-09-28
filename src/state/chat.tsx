@@ -16,6 +16,7 @@ export type Item = {
   ts: string;
   status?: 'sending' | 'streaming' | 'failed';
   thinkMs?: number;
+  attachments?: api.Attachment[];
   fresh?: boolean; // created in this session, animate its entrance
   error?: string;
 };
@@ -38,6 +39,7 @@ const fromMessage = (m: api.Message): Item => ({
   text: m.text || '',
   thinking: m.thinking || '',
   ts: m.timestamp,
+  attachments: (m.attachments as api.Attachment[] | undefined)?.filter((a) => a && a.path) ?? [],
 });
 
 const visible = (m: api.Message) =>
@@ -71,7 +73,7 @@ function reducer(s: State, a: Action): State {
 }
 
 type ChatCtx = State & {
-  send: (text: string) => void;
+  send: (text: string, attachments?: api.Attachment[]) => void;
   stop: () => void;
   loadOlder: () => void;
   refresh: () => void;
@@ -156,14 +158,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [signedIn, pollOnce]);
 
   const send = useCallback(
-    async (raw: string) => {
+    async (raw: string, attachments: api.Attachment[] = []) => {
       const text = raw.trim();
-      if (!text) return;
+      if (!text && !attachments.length) return;
       if (sref.current.busy) abort.current?.abort();
       const now = new Date().toISOString();
       const uKey = `u${Date.now()}`;
       const aKey = `a${Date.now()}`;
-      dispatch({ t: 'add', items: [{ key: uKey, role: 'user', text, thinking: '', ts: now, status: 'sending', fresh: true }] });
+      dispatch({ t: 'add', items: [{ key: uKey, role: 'user', text, thinking: '', ts: now, status: 'sending', fresh: true, attachments }] });
       dispatch({ t: 'busy', busy: true });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -177,6 +179,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         dispatch({ t: 'patch', key: uKey, patch: { status: undefined } });
         dispatch({ t: 'add', items: [{ key: aKey, role: 'assistant', text: '', thinking: '', ts: new Date().toISOString(), status: 'streaming', fresh: true }] });
       };
+      // Show the typing bubble as soon as the message is out, not at the first server event.
+      const typingTimer = setTimeout(ensureReply, 500);
       let firstText = true;
       const handlers = {
         onThinking: (t: string) => {
@@ -203,7 +207,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           dispatch({ t: 'patch', key: aKey, patch: { status: undefined } });
         } else {
           const ok = await api.streamChat(
-            { message: text, conversation_id: sref.current.convId, model: prefs.model, effort: prefs.effort.toLowerCase() },
+            { message: text, conversation_id: sref.current.convId, model: prefs.model, effort: prefs.effort.toLowerCase(), attachments: attachments.map((a) => a.path) },
             {
               ...handlers,
               onConversation: (d) => {
@@ -238,6 +242,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           setTimeout(pollOnce, 4000);
         }
       } finally {
+        clearTimeout(typingTimer);
         if (abort.current === ctrl) {
           abort.current = null;
           dispatch({ t: 'busy', busy: false });

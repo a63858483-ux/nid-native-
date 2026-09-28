@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import type { DrawerContentComponentProps } from 'expo-router/drawer';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { DeviceEventEmitter, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActionSheetIOS, DeviceEventEmitter, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import * as api from '@/lib/api';
@@ -30,10 +30,104 @@ function daysHome() {
   return Math.floor((today - Date.UTC(2026, 7, 10)) / 86400_000) + 1;
 }
 
+function fmtReset(kind: string, iso: string | null) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  if (kind === 'session') return hm;
+  return `${d.toLocaleDateString('en-US', { weekday: 'short' })} ${hm}`;
+}
+
+// Channel / background switch / quota bars, straight from the same endpoints the web sidebar uses.
+function Settings({ pal }: { pal: ReturnType<typeof usePalette> }) {
+  const { showToast } = useApp();
+  const [chan, setChan] = useState<api.ChannelState | null>(null);
+  const [bg, setBg] = useState<boolean | null>(null);
+  const [quota, setQuota] = useState<api.QuotaLimit[] | null>(null);
+  useEffect(() => {
+    if (DEMO) {
+      const t = setTimeout(() => {
+      setChan({ channel: 'max', model: 'fable-5-1', models: [{ id: 'fable-5-1', label: 'Fable 5.1' }] });
+      setBg(true);
+      setQuota([
+        { kind: 'session', label: '5-hour window', percent: 26, resets_at: null },
+        { kind: 'weekly_all', label: 'This week · all models', percent: 100, resets_at: null },
+        { kind: 'weekly_model', label: 'This week · Fable', percent: 100, resets_at: null },
+      ]);
+      }, 0);
+      return () => clearTimeout(t);
+    }
+    api.channelGet().then(setChan).catch(() => {});
+    api.backgroundGet().then(setBg).catch(() => {});
+    api.quotaGet().then((q) => setQuota(q.limits ?? [])).catch(() => setQuota([]));
+  }, []);
+
+  const pickChannel = () => {
+    if (!chan) return;
+    const options = ['Subscription', ...chan.models.map((m) => `API · ${m.label}`), 'Cancel'];
+    ActionSheetIOS.showActionSheetWithOptions(
+      { title: 'Channel', options, cancelButtonIndex: options.length - 1, userInterfaceStyle: pal.dark ? 'dark' : 'light' },
+      async (i) => {
+        if (i === options.length - 1) return;
+        try {
+          setChan(await api.channelSet(i === 0 ? 'max' : 'api', i === 0 ? undefined : chan.models[i - 1].id));
+        } catch {
+          showToast("Couldn't switch the channel");
+        }
+      },
+    );
+  };
+  const chipText = chan ? (chan.channel === 'max' ? 'Subscription' : `API · ${chan.models.find((m) => m.id === chan.model)?.label ?? chan.model}`) : '…';
+  const labelEn = (l: api.QuotaLimit) =>
+    l.kind === 'session' ? '5-hour window' : l.kind === 'weekly_all' ? 'This week · all models' : l.label.replace('本周 · ', 'This week · ');
+
+  return (
+    <View style={[styles.foot, { borderTopColor: pal.line }]}>
+      <Pressable onPress={pickChannel} style={styles.setRow}>
+        <Text style={[styles.setLabel, { color: pal.ink }]}>Channel</Text>
+        <View style={[styles.chip, { backgroundColor: pal.fill }]}>
+          <Text style={[styles.chipText, { color: pal.ink2 }]}>{chipText}</Text>
+        </View>
+      </Pressable>
+      <View style={styles.setRow}>
+        <Text style={[styles.setLabel, { color: pal.ink }]}>Background messages</Text>
+        <Switch
+          value={!!bg}
+          disabled={bg === null}
+          onValueChange={async (v) => {
+            setBg(v);
+            try {
+              await api.backgroundSet(v);
+            } catch {
+              setBg(!v);
+            }
+          }}
+        />
+      </View>
+      {(quota ?? []).map((l) => {
+        const p = Math.max(0, Math.min(100, Math.round(l.percent ?? 0)));
+        const color = p >= 85 ? '#FF3B30' : p >= 60 ? '#C2A35A' : '#6F9C86';
+        return (
+          <View key={l.kind + l.label} style={styles.q}>
+            <View style={styles.qHead}>
+              <Text style={[styles.qLabel, { color: pal.ink }]}>{labelEn(l)}</Text>
+              <Text style={[styles.qReset, { color: pal.ink2 }]}>{fmtReset(l.kind, l.resets_at)}  {p}%</Text>
+            </View>
+            <View style={[styles.bar, { backgroundColor: pal.fill }]}>
+              <View style={[styles.barFill, { width: `${p}%`, backgroundColor: color }]} />
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 export function Sidebar({ navigation }: DrawerContentComponentProps) {
   const insets = useSafeAreaInsets();
   const pal = usePalette();
-  const { prefs, showToast, signOut } = useApp();
+  const { prefs, showToast } = useApp();
   const { items } = useChat();
   const [q, setQ] = useState('');
   const [focused, setFocused] = useState(false);
@@ -184,11 +278,7 @@ export function Sidebar({ navigation }: DrawerContentComponentProps) {
               );
             })}
           </View>
-          <View style={[styles.foot, { borderTopColor: pal.line }]}>
-            <Pressable onPress={signOut} style={styles.footRow}>
-              <Text style={[styles.footText, { color: pal.ink2 }]}>Sign out</Text>
-            </Pressable>
-          </View>
+          <Settings pal={pal} />
         </View>
       )}
     </View>
@@ -223,7 +313,15 @@ const styles = StyleSheet.create({
   item: { height: 48, borderRadius: 15, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12 },
   itemLabel: { fontSize: 17, fontWeight: '600' },
   itemMeta: { marginLeft: 'auto', fontSize: 12.5, opacity: 0.8 },
-  foot: { marginTop: 'auto', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 8 },
-  footRow: { paddingVertical: 10, paddingHorizontal: 10 },
-  footText: { fontSize: 15 },
+  foot: { marginTop: 'auto', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 6 },
+  setRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, paddingHorizontal: 10, minHeight: 44 },
+  setLabel: { fontSize: 15.5, fontWeight: '500' },
+  chip: { paddingHorizontal: 11, paddingVertical: 4, borderRadius: 999 },
+  chipText: { fontSize: 12.5, fontWeight: '600' },
+  q: { paddingHorizontal: 10, paddingTop: 4, paddingBottom: 6 },
+  qHead: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  qLabel: { fontSize: 12, fontWeight: '600' },
+  qReset: { fontSize: 10.5, fontVariant: ['tabular-nums'] },
+  bar: { height: 4, borderRadius: 2, overflow: 'hidden' },
+  barFill: { height: 4, borderRadius: 2 },
 });
