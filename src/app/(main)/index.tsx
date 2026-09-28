@@ -1,64 +1,98 @@
-import * as Haptics from 'expo-haptics';
-import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
-import { router, useNavigation } from 'expo-router';
-import { useDrawerProgress } from 'expo-router/drawer';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DeviceEventEmitter, FlatList, Pressable, Settings, StyleSheet, Text, View, type ScrollViewProps } from 'react-native';
-import { KeyboardChatScrollView, KeyboardStickyView } from 'react-native-keyboard-controller';
-import Animated, { interpolate, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from "expo-haptics";
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
+import { router, useNavigation } from "expo-router";
+import { useDrawerProgress } from "expo-router/drawer";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  DeviceEventEmitter,
+  FlatList,
+  Pressable,
+  Settings,
+  StyleSheet,
+  Text,
+  View,
+  type ScrollViewProps,
+} from "react-native";
+import {
+  KeyboardChatScrollView,
+  KeyboardStickyView,
+} from "react-native-keyboard-controller";
+import Animated, {
+  interpolate,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Bubble, CardBubble, FileBubble, InlineImageBubble, InsideBubble, PhotoBubble, StickerBubble } from '@/components/Bubble';
-import { ChatHeader, EdgeBlur, HEADER_H } from '@/components/ChatHeader';
-import { Composer, type Pending } from '@/components/Composer';
-import { Decorated, RepliesLink, ReplyQuote } from '@/components/Decor';
-import { MessageMenu, type MenuAction } from '@/components/MessageMenu';
-import { PlusMenu, type PlusAction } from '@/components/PlusMenu';
-import { FOCUS_EVENT } from '@/components/Sidebar';
-import { ThoughtLine } from '@/components/ThoughtLine';
-import { Typing } from '@/components/Typing';
-import * as api from '@/lib/api';
-import { usePalette, WallpaperContext } from '@/lib/colors';
-import { DEMO } from '@/lib/config';
-import { tapbackMarker } from '@/lib/markers';
-import { plainOf } from '@/lib/rich';
-import { buildRows, segmentsOf, type Row } from '@/lib/rows';
-import { wallpaperUri } from '@/lib/storage';
-import { useApp } from '@/state/app';
-import { useChat } from '@/state/chat';
+import {
+  Bubble,
+  CardBubble,
+  FileBubble,
+  InlineImageBubble,
+  InsideBubble,
+  PhotoBubble,
+  StickerBubble,
+} from "@/components/Bubble";
+import { ChatHeader, EdgeBlur, HEADER_H } from "@/components/ChatHeader";
+import { Composer, type Pending } from "@/components/Composer";
+import { Decorated, RepliesLink, ReplyQuote } from "@/components/Decor";
+import { MessageMenu, type MenuAction } from "@/components/MessageMenu";
+import { PlusMenu, type PlusAction } from "@/components/PlusMenu";
+import { FOCUS_EVENT } from "@/components/Sidebar";
+import { ThoughtLine } from "@/components/ThoughtLine";
+import { Typing } from "@/components/Typing";
+import * as api from "@/lib/api";
+import { usePalette, WallpaperContext } from "@/lib/colors";
+import { DEMO } from "@/lib/config";
+import { tapbackMarker } from "@/lib/markers";
+import { plainOf } from "@/lib/rich";
+import { buildRows, segmentsOf, type Row } from "@/lib/rows";
+import { wallpaperUri } from "@/lib/storage";
+import { useApp } from "@/state/app";
+import { useChat } from "@/state/chat";
 
 const MODEL_LABEL: Record<string, string> = {
-  'claude-opus-5-5': 'Opus 5.5',
-  'claude-fable-5-1': 'Fable 5.1',
-  'claude-haiku-4-5': 'Haiku 4.5',
+  "claude-opus-5-5": "Opus 5.5",
+  "claude-fable-5-1": "Fable 5.1",
+  "claude-haiku-4-5": "Haiku 4.5",
 };
 
 // A sent bubble leaves the composer and settles into the list with a little overshoot.
 const sendEnter = () => {
-  'worklet';
+  "worklet";
   return {
-    initialValues: { opacity: 0.9, transform: [{ translateY: 58 }, { scale: 0.94 }] },
+    initialValues: {
+      opacity: 0.9,
+      transform: [{ translateY: 58 }, { scale: 0.94 }],
+    },
     animations: {
       opacity: withTiming(1, { duration: 120 }),
       transform: [
-        { translateY: withSpring(0, { damping: 16, stiffness: 210, mass: 0.8 }) },
+        {
+          translateY: withSpring(0, { damping: 16, stiffness: 210, mass: 0.8 }),
+        },
         { scale: withSpring(1, { damping: 14, stiffness: 240 }) },
       ],
     },
   };
 };
-// His bubble grows out of the typing indicator's spot (bottom-left) instead of popping in place.
+// His bubbles glide up into place the way a sent one does: soft, next to no overshoot.
 const replyEnter = () => {
-  'worklet';
+  "worklet";
   return {
-    initialValues: { opacity: 0, transform: [{ translateX: -6 }, { translateY: 8 }, { scale: 0.6 }] },
+    initialValues: {
+      opacity: 0,
+      transform: [{ translateY: 26 }, { scale: 0.96 }],
+    },
     animations: {
-      opacity: withTiming(1, { duration: 140 }),
+      opacity: withTiming(1, { duration: 200 }),
       transform: [
-        { translateX: withSpring(0, { damping: 16, stiffness: 200 }) },
-        { translateY: withSpring(0, { damping: 16, stiffness: 200 }) },
-        { scale: withSpring(1, { damping: 15, stiffness: 190, mass: 0.9 }) },
+        {
+          translateY: withSpring(0, { damping: 22, stiffness: 190, mass: 0.9 }),
+        },
+        { scale: withSpring(1, { damping: 22, stiffness: 220 }) },
       ],
     },
   };
@@ -86,7 +120,10 @@ function ChatScreenInner() {
   const [now, setNow] = useState(() => Date.now());
   const list = useRef<FlatList<Row>>(null);
   // Long-pressed bubble: where it sits on screen and which row it is.
-  const [menu, setMenu] = useState<{ row: Extract<Row, { type: 'bubble' }>; rect: { x: number; y: number; w: number; h: number } } | null>(null);
+  const [menu, setMenu] = useState<{
+    row: Extract<Row, { type: "bubble" }>;
+    rect: { x: number; y: number; w: number; h: number };
+  } | null>(null);
   const bubbleRefs = useRef<Record<string, View | null>>({});
 
   // Time labels (Today / Yesterday / weekday) move on their own as the clock does.
@@ -100,14 +137,14 @@ function ChatScreenInner() {
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   useEffect(() => {
     for (const it of items) {
-      if (it.role !== 'assistant' || !it.fresh) continue;
+      if (it.role !== "assistant" || !it.fresh) continue;
       const segs = segmentsOf(it);
-      const done = it.status !== 'streaming';
+      const done = it.status !== "streaming";
       const available = done ? segs.length : Math.max(0, segs.length - 1);
       const shown = reveal[it.key] ?? 0;
       if (shown >= available || timers.current[it.key]) continue;
       const next = segs[shown];
-      const len = next?.kind === 'text' ? next.text.length : 6;
+      const len = next?.kind === "text" ? next.text.length : 6;
       const delay = shown === 0 ? 420 : Math.min(2400, 450 + len * 26);
       timers.current[it.key] = setTimeout(() => {
         delete timers.current[it.key];
@@ -119,7 +156,10 @@ function ChatScreenInner() {
     const t = timers.current;
     return () => Object.values(t).forEach(clearTimeout);
   }, []);
-  const rows = useMemo(() => buildRows(items, now, reveal).reverse(), [items, now, reveal]);
+  const rows = useMemo(
+    () => buildRows(items, now, reveal).reverse(),
+    [items, now, reveal],
+  );
   const wall = wallpaperUri(prefs.wallpaper);
 
   // Rounded corners + shadow as the drawer pushes the page aside.
@@ -131,8 +171,13 @@ function ChatScreenInner() {
 
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener(FOCUS_EVENT, (id: number) => {
-      const index = rows.findIndex((r) => r.type === 'bubble' && r.itemKey === `m${id}`);
-      if (index < 0) return showToast('That one is further back. Scroll up to load older messages.');
+      const index = rows.findIndex(
+        (r) => r.type === "bubble" && r.itemKey === `m${id}`,
+      );
+      if (index < 0)
+        return showToast(
+          "That one is further back. Scroll up to load older messages.",
+        );
       list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
       setFlash(rows[index].key);
       setTimeout(() => setFlash(null), 1400);
@@ -143,27 +188,47 @@ function ChatScreenInner() {
   // CI screenshots: `simctl launch <app> -demoScene sidebar|model|plus` lands in NSUserDefaults.
   useEffect(() => {
     if (!DEMO) return;
-    const scene = Settings.get('demoScene');
+    const scene = Settings.get("demoScene");
     const t = setTimeout(() => {
-      if (scene === 'sidebar') nav.openDrawer();
-      if (scene === 'model') router.push('/sheet/model');
-      if (scene === 'plus') setPlusOpen(true);
+      if (scene === "sidebar") nav.openDrawer();
+      if (scene === "model") router.push("/sheet/model");
+      if (scene === "plus") setPlusOpen(true);
     }, 1500);
     return () => clearTimeout(t);
   }, [nav]);
 
   // Attachments upload as soon as they are picked; the send button waits for them.
   const addFiles = useCallback(
-    async (picked: { uri: string; name: string; mime: string; isImage: boolean }[]) => {
+    async (
+      picked: { uri: string; name: string; mime: string; isImage: boolean }[],
+    ) => {
       if (!picked.length) return;
-      const locals: Pending[] = picked.map((p) => ({ local: p.uri, name: p.name, isImage: p.isImage, uploading: true }));
+      const locals: Pending[] = picked.map((p) => ({
+        local: p.uri,
+        name: p.name,
+        isImage: p.isImage,
+        uploading: true,
+      }));
       setPending((cur) => [...cur, ...locals]);
       if (DEMO) {
-        setPending((cur) => cur.map((p) => (locals.some((l) => l.local === p.local) ? { ...p, uploading: false, att: { name: p.name, path: p.local, is_image: p.isImage } } : p)));
+        setPending((cur) =>
+          cur.map((p) =>
+            locals.some((l) => l.local === p.local)
+              ? {
+                  ...p,
+                  uploading: false,
+                  att: { name: p.name, path: p.local, is_image: p.isImage },
+                }
+              : p,
+          ),
+        );
         return;
       }
       try {
-        const { attachments } = await api.upload(convId, picked.map(({ uri, name, mime }) => ({ uri, name, mime })));
+        const { attachments } = await api.upload(
+          convId,
+          picked.map(({ uri, name, mime }) => ({ uri, name, mime })),
+        );
         setPending((cur) =>
           cur.map((p) => {
             const i = locals.findIndex((l) => l.local === p.local);
@@ -171,60 +236,97 @@ function ChatScreenInner() {
           }),
         );
       } catch (e) {
-        setPending((cur) => cur.filter((p) => !locals.some((l) => l.local === p.local)));
-        showToast(e instanceof Error ? `Upload failed: ${e.message}` : "Couldn't upload that. Try again.");
+        setPending((cur) =>
+          cur.filter((p) => !locals.some((l) => l.local === p.local)),
+        );
+        showToast(
+          e instanceof Error
+            ? `Upload failed: ${e.message}`
+            : "Couldn't upload that. Try again.",
+        );
       }
     },
     [convId, showToast],
   );
 
   const pickPhotos = async (camera: boolean) => {
-    const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.85 };
+    const opts: ImagePicker.ImagePickerOptions = {
+      mediaTypes: ["images"],
+      quality: 0.85,
+    };
     const res = camera
       ? await ImagePicker.launchCameraAsync(opts)
-      : await ImagePicker.launchImageLibraryAsync({ ...opts, allowsMultipleSelection: true, selectionLimit: 9, orderedSelection: true });
+      : await ImagePicker.launchImageLibraryAsync({
+          ...opts,
+          allowsMultipleSelection: true,
+          selectionLimit: 9,
+          orderedSelection: true,
+        });
     if (res.canceled) return;
-    addFiles(res.assets.map((a, i) => ({ uri: a.uri, name: a.fileName || `photo-${Date.now()}-${i}.jpg`, mime: a.mimeType || 'image/jpeg', isImage: true })));
+    addFiles(
+      res.assets.map((a, i) => ({
+        uri: a.uri,
+        name: a.fileName || `photo-${Date.now()}-${i}.jpg`,
+        mime: a.mimeType || "image/jpeg",
+        isImage: true,
+      })),
+    );
   };
   const pickFiles = async () => {
     // The document picker is native: dev builds made before it was added don't have it.
-    let res: import('expo-document-picker').DocumentPickerResult;
+    let res: import("expo-document-picker").DocumentPickerResult;
     try {
-      const DocumentPicker = await import('expo-document-picker');
-      res = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: true });
+      const DocumentPicker = await import("expo-document-picker");
+      res = await DocumentPicker.getDocumentAsync({
+        multiple: true,
+        copyToCacheDirectory: true,
+      });
     } catch {
-      return showToast('Files need the newer app build');
+      return showToast("Files need the newer app build");
     }
     if (res.canceled) return;
-    addFiles(res.assets.map((a) => ({ uri: a.uri, name: a.name, mime: a.mimeType || 'application/octet-stream', isImage: !!a.mimeType?.startsWith('image/') })));
+    addFiles(
+      res.assets.map((a) => ({
+        uri: a.uri,
+        name: a.name,
+        mime: a.mimeType || "application/octet-stream",
+        isImage: !!a.mimeType?.startsWith("image/"),
+      })),
+    );
   };
 
   const pick = async (a: PlusAction) => {
     setPlusOpen(false);
-    if (a === 'camera') {
+    if (a === "camera") {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
-      if (!perm.granted) return showToast('Camera access is off in Settings');
+      if (!perm.granted) return showToast("Camera access is off in Settings");
       return pickPhotos(true);
     }
-    if (a === 'photos') return pickPhotos(false);
-    if (a === 'files') return pickFiles();
-    if (a === 'stickers') return router.push('/sheet/stickers');
+    if (a === "photos") return pickPhotos(false);
+    if (a === "files") return pickFiles();
+    if (a === "stickers") return router.push("/sheet/stickers");
     router.push(`/sheet/${a}`);
   };
 
   const onSend = (text: string) => {
-    const atts = pending.map((p) => p.att).filter((a): a is api.Attachment => !!a);
+    const atts = pending
+      .map((p) => p.att)
+      .filter((a): a is api.Attachment => !!a);
     setPending([]);
     send(text, atts);
   };
 
   // Split replies: a reaction or reply points at the one bubble, quoted by its own opening words.
-  const targetOf = (row: Extract<Row, { type: 'bubble' }>) => {
+  const targetOf = (row: Extract<Row, { type: "bubble" }>) => {
     const it = items.find((i) => i.key === row.itemKey);
     return { id: it?.id, body: row.text };
   };
-  const openThread = (itemKey: string, seg: number) => router.push({ pathname: '/thread/[key]', params: { key: itemKey, seg: String(seg) } });
-  const longPress = (row: Extract<Row, { type: 'bubble' }>) => {
+  const openThread = (itemKey: string, seg: number) =>
+    router.push({
+      pathname: "/thread/[key]",
+      params: { key: itemKey, seg: String(seg) },
+    });
+  const longPress = (row: Extract<Row, { type: "bubble" }>) => {
     const v = bubbleRefs.current[row.key];
     if (!v) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -233,7 +335,9 @@ function ChatScreenInner() {
   const onTapback = (emoji: string) => {
     if (!menu) return;
     const { id, body } = targetOf(menu.row);
-    const on = (menu.row.tapbacks ?? []).some((t) => t.mine && t.emoji === emoji);
+    const on = (menu.row.tapbacks ?? []).some(
+      (t) => t.mine && t.emoji === emoji,
+    );
     setMenu(null);
     send(tapbackMarker(id, body, emoji, on));
   };
@@ -241,70 +345,113 @@ function ChatScreenInner() {
     if (!menu) return;
     const row = menu.row;
     setMenu(null);
-    if (a === 'reply') return openThread(row.itemKey, row.seg);
-    if (a === 'copy') return copyText(plainOf(row.text));
-    if (a === 'select') return router.push({ pathname: '/sheet/select', params: { text: plainOf(row.text) } });
+    if (a === "reply") return openThread(row.itemKey, row.seg);
+    if (a === "copy") return copyText(plainOf(row.text));
+    if (a === "select")
+      return router.push({
+        pathname: "/sheet/select",
+        params: { text: plainOf(row.text) },
+      });
     const { id, body } = targetOf(row);
-    const mode = a === 'emoji' ? { tap: '1' } : { stick: '1' };
-    router.push({ pathname: '/sheet/stickers', params: { ...mode, id: id ? String(id) : '', quote: body.slice(0, 40) } });
+    const mode = a === "emoji" ? { tap: "1" } : { stick: "1" };
+    router.push({
+      pathname: "/sheet/stickers",
+      params: { ...mode, id: id ? String(id) : "", quote: body.slice(0, 40) },
+    });
   };
   const copyText = async (text: string) => {
     // expo-clipboard is native: dev builds made before it was added don't have it.
     try {
-      const Clipboard = await import('expo-clipboard');
+      const Clipboard = await import("expo-clipboard");
       await Clipboard.setStringAsync(text);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
-      showToast('Copy needs the newer app build');
+      showToast("Copy needs the newer app build");
     }
   };
 
   const renderScroll = useCallback(
-    (props: ScrollViewProps) => <KeyboardChatScrollView {...props} inverted keyboardLiftBehavior="always" offset={insets.bottom} />,
+    (props: ScrollViewProps) => (
+      <KeyboardChatScrollView
+        {...props}
+        inverted
+        keyboardLiftBehavior="always"
+        offset={insets.bottom}
+      />
+    ),
     [insets.bottom],
   );
 
   const renderItem = useCallback(
     ({ item }: { item: Row }) => {
-      if (item.type === 'divider') {
-        const [day, ...rest] = item.label.split(' ');
+      if (item.type === "divider") {
+        const [day, ...rest] = item.label.split(" ");
         const time = rest.pop();
-        const dayText = [day, ...rest].join(' ');
+        const dayText = [day, ...rest].join(" ");
         return (
-          <Text style={[styles.divider, { color: pal.meta }, pal.wall && styles.shadow]}>
-            <Text style={{ fontWeight: '700' }}>{dayText}</Text> {time}
+          <Text
+            style={[
+              styles.divider,
+              { color: pal.meta },
+              pal.wall && styles.shadow,
+            ]}
+          >
+            <Text style={{ fontWeight: "700" }}>{dayText}</Text> {time}
           </Text>
         );
       }
-      if (item.type === 'inside') {
+      if (item.type === "inside") {
         return (
-          <Animated.View entering={item.fresh ? replyEnter : undefined} style={item.gapAbove ? styles.gap : styles.tight}>
+          <Animated.View
+            entering={item.fresh ? replyEnter : undefined}
+            style={item.gapAbove ? styles.gap : styles.tight}
+          >
             <InsideBubble tone={item.item.tone} text={item.item.text} />
           </Animated.View>
         );
       }
-      if (item.type === 'typing') {
+      if (item.type === "typing") {
         return (
           <View style={styles.gap}>
-            {item.thought && <ThoughtLine label={item.thought.label} live={item.thought.live} icon={item.thought.icon} onPress={() => {}} />}
+            {item.thought && (
+              <ThoughtLine
+                label={item.thought.label}
+                live={item.thought.live}
+                icon={item.thought.icon}
+                onPress={() => {}}
+              />
+            )}
             <Typing />
           </View>
         );
       }
-      const mine = item.role === 'user';
-      if (item.type === 'inline') {
+      const mine = item.role === "user";
+      if (item.type === "inline") {
         const m = item.media;
         return (
-          <Animated.View entering={item.fresh ? (mine ? sendEnter : replyEnter) : undefined} style={item.gapAbove ? styles.gap : styles.tight}>
-            {m.kind === 'sticker' ? <StickerBubble id={m.id} mine={mine} /> : m.kind === 'image' ? <InlineImageBubble url={m.url} mine={mine} /> : <CardBubble media={m} mine={mine} myColor={prefs.bubble} />}
+          <Animated.View
+            entering={item.fresh ? (mine ? sendEnter : replyEnter) : undefined}
+            style={item.gapAbove ? styles.gap : styles.tight}
+          >
+            {m.kind === "sticker" ? (
+              <StickerBubble id={m.id} mine={mine} />
+            ) : m.kind === "image" ? (
+              <InlineImageBubble url={m.url} mine={mine} />
+            ) : (
+              <CardBubble media={m} mine={mine} myColor={prefs.bubble} />
+            )}
           </Animated.View>
         );
       }
-      if (item.type === 'media') {
+      if (item.type === "media") {
         return (
-          <Animated.View entering={item.fresh ? (mine ? sendEnter : replyEnter) : undefined} style={item.gapAbove ? styles.gap : styles.tight}>
-            {item.att.is_image || /\.(jpe?g|png|gif|webp|heic)$/i.test(item.att.name) ? (
-              <PhotoBubble convId={convId ?? ''} att={item.att} mine={mine} />
+          <Animated.View
+            entering={item.fresh ? (mine ? sendEnter : replyEnter) : undefined}
+            style={item.gapAbove ? styles.gap : styles.tight}
+          >
+            {item.att.is_image ||
+            /\.(jpe?g|png|gif|webp|heic)$/i.test(item.att.name) ? (
+              <PhotoBubble convId={convId ?? ""} att={item.att} mine={mine} />
             ) : (
               <FileBubble att={item.att} mine={mine} myColor={prefs.bubble} />
             )}
@@ -314,25 +461,76 @@ function ChatScreenInner() {
       return (
         <Animated.View
           entering={item.fresh ? (mine ? sendEnter : replyEnter) : undefined}
-          style={[item.gapAbove ? styles.gap : styles.tight, flash === item.key && styles.flash]}>
+          style={[
+            item.gapAbove ? styles.gap : styles.tight,
+            flash === item.key && styles.flash,
+          ]}
+        >
           {item.thought && (
-            <ThoughtLine label={item.thought.label} live={item.thought.live} icon={item.thought.icon} onPress={() => router.push({ pathname: '/sheet/thought', params: { key: item.itemKey } })} />
+            <ThoughtLine
+              label={item.thought.label}
+              live={item.thought.live}
+              icon={item.thought.icon}
+              onPress={() =>
+                router.push({
+                  pathname: "/sheet/thought",
+                  params: { key: item.itemKey },
+                })
+              }
+            />
           )}
-          {item.quote && <ReplyQuote quote={item.quote} replyMine={mine} onOpen={() => openThread(item.quote!.targetKey, item.quote!.seg)} />}
-          <Decorated mine={mine} myColor={prefs.bubble} tapbacks={item.tapbacks} sticks={item.sticks}>
+          {item.quote && (
+            <ReplyQuote
+              quote={item.quote}
+              replyMine={mine}
+              onOpen={() => openThread(item.quote!.targetKey, item.quote!.seg)}
+            />
+          )}
+          <Decorated
+            mine={mine}
+            myColor={prefs.bubble}
+            tapbacks={item.tapbacks}
+            sticks={item.sticks}
+          >
             <Pressable
               ref={(v) => {
                 bubbleRefs.current[item.key] = v;
               }}
               onLongPress={() => longPress(item)}
               delayLongPress={280}
-              style={{ opacity: menu?.row.key === item.key ? 0 : 1 }}>
-              <Bubble role={item.role} text={item.text} tail={item.tail} myColor={prefs.bubble} big={item.big} boxed />
+              style={{ opacity: menu?.row.key === item.key ? 0 : 1 }}
+            >
+              <Bubble
+                role={item.role}
+                text={item.text}
+                tail={item.tail}
+                myColor={prefs.bubble}
+                big={item.big}
+                boxed
+              />
             </Pressable>
           </Decorated>
-          {item.replies ? <RepliesLink count={item.replies} mine={mine} onOpen={() => openThread(item.itemKey, item.seg)} /> : null}
-          {item.receipt ? <Text style={[styles.receipt, { color: pal.meta }, pal.wall && styles.shadow]}>{item.receipt}</Text> : null}
-          {item.failed ? <Text style={styles.failed}>Not delivered: {item.failed}</Text> : null}
+          {item.replies ? (
+            <RepliesLink
+              count={item.replies}
+              mine={mine}
+              onOpen={() => openThread(item.itemKey, item.seg)}
+            />
+          ) : null}
+          {item.receipt ? (
+            <Text
+              style={[
+                styles.receipt,
+                { color: pal.meta },
+                pal.wall && styles.shadow,
+              ]}
+            >
+              {item.receipt}
+            </Text>
+          ) : null}
+          {item.failed ? (
+            <Text style={styles.failed}>Not delivered: {item.failed}</Text>
+          ) : null}
         </Animated.View>
       );
     },
@@ -340,8 +538,20 @@ function ChatScreenInner() {
   );
 
   return (
-    <Animated.View style={[styles.page, { backgroundColor: pal.bg, shadowColor: '#000', shadowRadius: 30 }, pageSt]}>
-      {wall ? <Image source={wall} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
+    <Animated.View
+      style={[
+        styles.page,
+        { backgroundColor: pal.bg, shadowColor: "#000", shadowRadius: 30 },
+        pageSt,
+      ]}
+    >
+      {wall ? (
+        <Image
+          source={wall}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+        />
+      ) : null}
 
       <FlatList
         ref={list}
@@ -354,22 +564,45 @@ function ChatScreenInner() {
         onEndReachedThreshold={0.4}
         keyboardDismissMode="interactive"
         onScrollToIndexFailed={() => {}}
-        contentContainerStyle={{ paddingHorizontal: 12, paddingTop: composerH + insets.bottom + 8, paddingBottom: insets.top + HEADER_H + 8 }}
-        ListEmptyComponent={loading ? null : <Text style={[styles.empty, { color: pal.meta }]}>No messages yet. Say hi.</Text>}
+        contentContainerStyle={{
+          paddingHorizontal: 12,
+          paddingTop: composerH + insets.bottom + 8,
+          paddingBottom: insets.top + HEADER_H + 8,
+        }}
+        ListEmptyComponent={
+          loading ? null : (
+            <Text style={[styles.empty, { color: pal.meta }]}>
+              No messages yet. Say hi.
+            </Text>
+          )
+        }
       />
 
       <EdgeBlur from="top" height={insets.top + HEADER_H} />
       <EdgeBlur from="bottom" height={insets.bottom + composerH + 10} />
 
-      <ChatHeader name={prefs.name} onMenu={() => nav.openDrawer()} onName={() => router.push('/sheet/name')} onCall={() => showToast('Calls come in a later step')} />
+      <ChatHeader
+        name={prefs.name}
+        onMenu={() => nav.openDrawer()}
+        onName={() => router.push("/sheet/name")}
+        onCall={() => showToast("Calls come in a later step")}
+      />
 
-      <KeyboardStickyView offset={{ closed: 0, opened: insets.bottom - 6 }} style={styles.dock}>
-        <View onLayout={(e) => setComposerH(e.nativeEvent.layout.height)} style={{ paddingBottom: insets.bottom + 6 }}>
+      <KeyboardStickyView
+        offset={{ closed: 0, opened: insets.bottom - 6 }}
+        style={styles.dock}
+      >
+        <View
+          onLayout={(e) => setComposerH(e.nativeEvent.layout.height)}
+          style={{ paddingBottom: insets.bottom + 6 }}
+        >
           <Composer
             myColor={prefs.bubble}
             plusOpen={plusOpen}
             pending={pending}
-            onRemovePending={(local) => setPending((cur) => cur.filter((p) => p.local !== local))}
+            onRemovePending={(local) =>
+              setPending((cur) => cur.filter((p) => p.local !== local))
+            }
             onPlus={() => {
               Haptics.selectionAsync();
               setPlusOpen((o) => !o);
@@ -382,29 +615,74 @@ function ChatScreenInner() {
       {menu && (
         <MessageMenu
           rect={menu.rect}
-          mine={menu.row.role === 'user'}
-          active={(menu.row.tapbacks ?? []).filter((t) => t.mine).map((t) => t.emoji)}
-          bubble={<Bubble role={menu.row.role} text={menu.row.text} tail={menu.row.tail} myColor={prefs.bubble} big={menu.row.big} boxed />}
+          mine={menu.row.role === "user"}
+          active={(menu.row.tapbacks ?? [])
+            .filter((t) => t.mine)
+            .map((t) => t.emoji)}
+          bubble={
+            <Bubble
+              role={menu.row.role}
+              text={menu.row.text}
+              tail={menu.row.tail}
+              myColor={prefs.bubble}
+              big={menu.row.big}
+              boxed
+            />
+          }
           onClose={() => setMenu(null)}
           onTapback={onTapback}
           onAction={onMenuAction}
         />
       )}
 
-      <PlusMenu open={plusOpen} bottomInset={insets.bottom} topInset={insets.top + HEADER_H} note={`${MODEL_LABEL[prefs.model] ?? 'More'} · ${prefs.effort}`} onClose={() => setPlusOpen(false)} onPick={pick} />
+      <PlusMenu
+        open={plusOpen}
+        bottomInset={insets.bottom}
+        topInset={insets.top + HEADER_H}
+        note={`${MODEL_LABEL[prefs.model] ?? "More"} · ${prefs.effort}`}
+        onClose={() => setPlusOpen(false)}
+        onPick={pick}
+      />
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, overflow: 'hidden', borderCurve: 'continuous' },
-  divider: { alignSelf: 'center', fontSize: 11.5, fontWeight: '500', paddingTop: 16, paddingBottom: 8 },
+  page: { flex: 1, overflow: "hidden", borderCurve: "continuous" },
+  divider: {
+    alignSelf: "center",
+    fontSize: 11.5,
+    fontWeight: "500",
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
   gap: { marginTop: 10 },
   tight: { marginTop: 3 },
   flash: { opacity: 0.55 },
-  shadow: { textShadowColor: 'rgba(0,0,0,0.45)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
-  receipt: { alignSelf: 'flex-end', fontSize: 11.5, fontWeight: '600', marginTop: 4, marginRight: 10 },
-  failed: { alignSelf: 'flex-end', fontSize: 11.5, color: '#FF3B30', marginTop: 4, marginRight: 10 },
-  empty: { textAlign: 'center', marginTop: 40, fontSize: 14, transform: [{ scaleY: -1 }] },
-  dock: { position: 'absolute', left: 0, right: 0, bottom: 0 },
+  shadow: {
+    textShadowColor: "rgba(0,0,0,0.45)",
+    textShadowRadius: 6,
+    textShadowOffset: { width: 0, height: 1 },
+  },
+  receipt: {
+    alignSelf: "flex-end",
+    fontSize: 11.5,
+    fontWeight: "600",
+    marginTop: 4,
+    marginRight: 10,
+  },
+  failed: {
+    alignSelf: "flex-end",
+    fontSize: 11.5,
+    color: "#FF3B30",
+    marginTop: 4,
+    marginRight: 10,
+  },
+  empty: {
+    textAlign: "center",
+    marginTop: 40,
+    fontSize: 14,
+    transform: [{ scaleY: -1 }],
+  },
+  dock: { position: "absolute", left: 0, right: 0, bottom: 0 },
 });
