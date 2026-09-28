@@ -196,11 +196,19 @@ export function Composer({
           )}
           <View style={styles.inrow}>
             <View style={{ flex: 1 }}>
+              <Text aria-hidden style={[styles.input, styles.measure]} onLayout={(e) => setContentH(e.nativeEvent.layout.height)}>
+                {piecesOf(text, spans).map((pc, i) => (
+                  <Text key={i} style={pieceStyle(pc.kinds)}>
+                    {pc.text}
+                  </Text>
+                ))}
+                {/* keeps a trailing empty line counted */}
+                {'\u200b'}
+              </Text>
               <TextInput
                 ref={input}
                 autoFocus={autoFocus}
                 onChangeText={onChange}
-                onContentSizeChange={(e) => setContentH(e.nativeEvent.contentSize.height)}
                 onFocus={() => setFocused(true)}
                 onBlur={() => setFocused(false)}
                 onSelectionChange={(e) => {
@@ -210,7 +218,7 @@ export function Composer({
                 placeholder={placeholder}
                 placeholderTextColor={ink2}
                 multiline
-                // Fabric keeps a cleared multiline field at its old height; size it ourselves.
+                // Sized from the hidden copy below: grows with the text, back to one line once sent.
                 style={[styles.input, { color: ink, height: text ? Math.min(MAX_H, Math.max(MIN_H, contentH)) : MIN_H }]}>
                 {piecesOf(text, spans).map((pc, i) => (
                   <Text key={i} style={pieceStyle(pc.kinds)}>
@@ -268,6 +276,7 @@ const styles = StyleSheet.create({
   chipX: { position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
   inrow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
   input: { fontSize: 17, lineHeight: 22, paddingTop: 6, paddingBottom: 6 },
+  measure: { position: 'absolute', left: 0, right: 0, top: 0, opacity: 0 },
   morph: { borderRadius: 17, paddingHorizontal: 12, marginLeft: -12, marginRight: -4, justifyContent: 'flex-end' },
   action: { width: 34, height: 34, marginLeft: 2 },
   center: { alignItems: 'center', justifyContent: 'center' },
