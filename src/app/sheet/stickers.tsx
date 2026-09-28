@@ -9,12 +9,14 @@ import { SheetHeader } from '@/components/SheetHeader';
 import * as api from '@/lib/api';
 import { usePalette } from '@/lib/colors';
 import { API_BASE } from '@/lib/config';
-import { stickMarker, tapbackMarker } from '@/lib/markers';
+import { stickMarker } from '@/lib/markers';
 import { useStickers } from '@/lib/stickers';
 import { useChat } from '@/state/chat';
 
 const EMOJI = [
-  ...'😂 🤣 😭 🥺 🥹 😍 🥰 😘 😚 😋 😜 🤪 😝 🤭 🫢 🫣 🤫 🤔 🤨 🧐 😏 🙄 😬 😳 😱 😤 😡 🤬 😈 😇 🥳 😎 🤓 😴 🤤 😪 🥱 😵‍💫 🤯 🫠 😶‍🌫️ 🙃 😌 😔 😢 😞 😩 😫 🫡 🤗 💀 👻 🙈 🙉 🙊 💩'.split(' '),
+  ...'😂 🤣 😭 🥺 🥹 😍 🥰 😘 😚 😋 😜 🤪 😝 🤭 🫢 🫣 🤫 🤔 🤨 🧐 😏 🙄 😬 😳 😱 😤 😡 🤬 😈 😇 🥳 😎 🤓 😴 🤤 😪 🥱 😵‍💫 🤯 🫠 😶‍🌫️ 🙃 😌 😔 😢 😞 😩 😫 🫡 🤗 💀 👻 🙈 🙉 🙊 💩'.split(
+    ' ',
+  ),
   ...'❤️ 🩷 🧡 💛 💚 🩵 💙 💜 🖤 🩶 🤍 💔 ❤️‍🔥 💕 💞 💗 💖 💘 💝 💋 💌'.split(' '),
   ...'👍 👎 👏 🙌 🫶 🤝 🙏 ✌️ 🤞 🫰 🤌 👌 👉 👈 ☝️ 👋 🤙 💪 🫵 🫳 🫴'.split(' '),
   ...'🔥 ✨ ⭐ 🌟 💫 💥 💯 💢 💤 💦 🫧 🎉 🎊 🎈 🎁 🎀 👑 💎 🌸 🌹 🌷 🌻 🍀 🍓 🍑 🍒 🧁 🍰 🍫 ☕ 🧋 🐱 🐰 🐶 🐻 🐼 🐥 🦋 🌙 ☀️ 🌈 ❄️ ⚡'.split(' '),
@@ -22,14 +24,13 @@ const EMOJI = [
 const EMOJI_RE =
   /(?:\p{Extended_Pictographic}|\p{Emoji_Presentation}|[\u{1F1E6}-\u{1F1FF}])(?:️|[\u{1F3FB}-\u{1F3FF}]|[\u{1F1E6}-\u{1F1FF}]|‍(?:\p{Extended_Pictographic}|\p{Emoji_Presentation})️?)*/u;
 
-// Stickers and emoji. From the + menu a tap sends one; from a bubble's long-press it
-// gets stuck onto that bubble (stick=1) or becomes a tapback (tap=1).
+// Stickers and emoji. From the + menu a tap sends one; from a bubble's long-press
+// (stick=1) it gets stuck onto that bubble, bare and tilted.
 export default function StickersSheet() {
   const pal = usePalette();
   const { send } = useChat();
-  const { stick, tap, id, quote } = useLocalSearchParams<{ stick?: string; tap?: string; id?: string; quote?: string }>();
+  const { stick, id, quote } = useLocalSearchParams<{ stick?: string; id?: string; quote?: string }>();
   const sticking = stick === '1';
-  const reacting = tap === '1';
   const target = id ? Number(id) : undefined;
   const list = useStickers(api.stickersList);
   const mine = (list ?? []).filter((s) => s.owner === 'user');
@@ -42,7 +43,7 @@ export default function StickersSheet() {
     setTimeout(() => send(text), 150);
   };
   const pickSticker = (sid: string) => done(sticking ? stickMarker(target, quote ?? '', `sticker:${sid}`) : `[sticker:${sid}]`);
-  const pickEmoji = (e: string) => done(reacting ? tapbackMarker(target, quote ?? '', e) : stickMarker(target, quote ?? '', e));
+  const pickEmoji = (e: string) => done(stickMarker(target, quote ?? '', e));
 
   const grid = (items: typeof mine) => (
     <View style={styles.grid}>
@@ -78,14 +79,6 @@ export default function StickersSheet() {
     </>
   );
 
-  if (reacting) {
-    return (
-      <ScrollView contentContainerStyle={{ paddingBottom: 30 }} keyboardShouldPersistTaps="handled">
-        <SheetHeader title="React" />
-        {emojiPart}
-      </ScrollView>
-    );
-  }
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: 30 }} keyboardShouldPersistTaps="handled">
       <SheetHeader title={sticking ? 'Attach Sticker' : 'Stickers'} />
