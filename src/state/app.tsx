@@ -26,7 +26,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      const [t, p] = await Promise.all([loadToken(), loadPrefs()]);
+      // A Keychain failure (e.g. an unsigned simulator build) must not keep the splash up forever.
+      const [t, p] = await Promise.all([loadToken().catch(() => null), loadPrefs()]);
       setPrefsState(p);
       if (t) setToken(t);
       setSignedIn(DEMO || !!t);
@@ -37,13 +38,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(async (password: string) => {
     const t = await login(password);
     setToken(t);
-    await saveToken(t);
+    await saveToken(t).catch(() => {});
     setSignedIn(true);
   }, []);
 
   const signOut = useCallback(async () => {
     setToken(null);
-    await clearToken();
+    await clearToken().catch(() => {});
     setSignedIn(false);
   }, []);
 

@@ -26,7 +26,11 @@ function Shell() {
   useEffect(() => {
     if (ready && fonts) SplashScreen.hideAsync();
   }, [ready, fonts]);
-  if (!ready || !fonts) return null;
+  useEffect(() => {
+    const t = setTimeout(() => SplashScreen.hideAsync(), 4000);
+    return () => clearTimeout(t);
+  }, []);
+  if (!ready) return null;
   return (
     <View style={{ flex: 1 }}>
       <Stack screenOptions={{ headerShown: false }}>

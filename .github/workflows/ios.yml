@@ -120,8 +120,11 @@ jobs:
             sleep 14
             xcrun simctl io "$DEVICE" screenshot "shots/$scene.png"
           done
+          xcrun simctl spawn "$DEVICE" log show --last 5m --style compact \
+            --predicate 'process == "Nid"' > shots/device.log 2>&1 || true
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: simulator-screenshots
           path: shots/
