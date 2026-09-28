@@ -1,6 +1,6 @@
 import type { Attachment, Inside } from './api';
+import { emojiOnly, parseMessage, splitBubbles, type Media } from './text';
 import { collapseSteps } from './traces';
-import { cleanAssistantText, splitBubbles } from './text';
 import type { Item } from '@/state/chat';
 
 type Thought = { label: string; live: boolean; icon?: string };
@@ -13,6 +13,7 @@ export type Row =
       itemKey: string;
       role: 'user' | 'assistant';
       text: string;
+      big: boolean;
       tail: boolean;
       gapAbove: boolean;
       thought?: Thought;
@@ -21,6 +22,7 @@ export type Row =
       failed?: string;
     }
   | { type: 'media'; key: string; itemKey: string; role: 'user' | 'assistant'; att: Attachment; gapAbove: boolean; fresh?: boolean }
+  | { type: 'inline'; key: string; itemKey: string; role: 'user' | 'assistant'; media: Media; gapAbove: boolean; fresh?: boolean }
   | { type: 'inside'; key: string; itemKey: string; item: Inside; gapAbove: boolean; fresh?: boolean }
   | { type: 'typing'; key: string; itemKey: string; thought?: Thought };
 
@@ -55,9 +57,19 @@ function thoughtOf(i: Item): Thought | undefined {
   return { label: 'Thought process', live: false };
 }
 
+export type Segment = { kind: 'text'; text: string } | { kind: 'media'; media: Media };
+
+// A message becomes segments in display order: paragraphs, then inline media/stickers/cards.
+export function segmentsOf(it: Item): Segment[] {
+  const { text, media } = parseMessage(it.text);
+  const segs: Segment[] = splitBubbles(text).map((p) => ({ kind: 'text', text: p }));
+  for (const m of media) segs.push({ kind: 'media', media: m });
+  return segs;
+}
+
 // Items (oldest → newest) become display rows, also oldest → newest.
-// Every blank line splits a message into its own bubble, for both sides.
-export function buildRows(items: Item[], now = Date.now()): Row[] {
+// `reveal` caps how many segments of a fresh reply are shown yet (they arrive one by one).
+export function buildRows(items: Item[], now = Date.now(), reveal: Record<string, number> = {}): Row[] {
   const rows: Row[] = [];
   let prevTs = 0;
   let prevRole: string | null = null;
@@ -84,33 +96,48 @@ export function buildRows(items: Item[], now = Date.now()): Row[] {
       prevRole = it.role;
     }
 
-    const text = it.role === 'assistant' ? cleanAssistantText(it.text) : it.text;
-    const parts = splitBubbles(text);
+    const segs = segmentsOf(it);
+    const streaming = it.role === 'assistant' && it.status === 'streaming';
+    const paced = it.role === 'assistant' && it.fresh;
+    const shown = paced ? Math.min(segs.length, reveal[it.key] ?? 0) : segs.length;
+    const thought = thoughtOf(it);
 
-    if (parts.length === 0) {
-      if (it.role === 'assistant' && it.status === 'streaming') {
-        rows.push({ type: 'typing', key: `t-${it.key}`, itemKey: it.key, thought: thoughtOf(it) });
-        prevRole = 'assistant';
+    segs.slice(0, shown).forEach((seg, idx) => {
+      const gapAbove = prevRole !== it.role;
+      if (seg.kind === 'media') {
+        rows.push({ type: 'inline', key: `${it.key}-m-${idx}`, itemKey: it.key, role: it.role, media: seg.media, gapAbove, fresh: it.fresh });
+      } else {
+        rows.push({
+          type: 'bubble',
+          key: `${it.key}-${idx}`,
+          itemKey: it.key,
+          role: it.role,
+          text: seg.text,
+          big: emojiOnly(seg.text),
+          tail: true,
+          gapAbove,
+          thought: idx === 0 ? thought : undefined,
+          fresh: it.fresh,
+          failed: idx === segs.length - 1 ? it.error : undefined,
+        });
       }
-      return;
-    }
-
-    parts.forEach((p, idx) => {
-      rows.push({
-        type: 'bubble',
-        key: `${it.key}-${idx}`,
-        itemKey: it.key,
-        role: it.role,
-        text: p,
-        tail: true,
-        gapAbove: prevRole !== it.role,
-        thought: idx === 0 ? thoughtOf(it) : undefined,
-        fresh: it.fresh,
-        failed: idx === parts.length - 1 ? it.error : undefined,
-      });
       prevRole = it.role;
     });
+
+    if (it.role === 'assistant' && (streaming || shown < segs.length)) {
+      rows.push({ type: 'typing', key: `t-${it.key}`, itemKey: it.key, thought: shown === 0 ? thought : undefined });
+      prevRole = 'assistant';
+    }
   });
+
+  // Messages: only the last bubble of a run keeps its tail.
+  for (let i = 0; i < rows.length - 1; i++) {
+    const a = rows[i];
+    const b = rows[i + 1];
+    if (a.type !== 'bubble') continue;
+    const bRole = b.type === 'typing' ? 'assistant' : b.type === 'divider' ? null : b.type === 'inside' ? 'assistant' : b.role;
+    if (bRole === a.role) a.tail = false;
+  }
 
   if (lastUser) {
     const last = [...rows].reverse().find((r) => r.type === 'bubble' && r.itemKey === lastUser.key);

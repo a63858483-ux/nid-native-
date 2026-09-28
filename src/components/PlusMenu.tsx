@@ -9,11 +9,12 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } fr
 import { Glass } from './Glass';
 import { usePalette } from '@/lib/colors';
 
-export type PlusAction = 'camera' | 'photos' | 'files' | 'model' | 'checklist' | 'bubble' | 'wallpaper';
+export type PlusAction = 'camera' | 'photos' | 'stickers' | 'files' | 'model' | 'checklist' | 'bubble' | 'wallpaper';
 
 const ITEMS: { key: PlusAction; label: string; icon: SFSymbol; color: string }[] = [
   { key: 'camera', label: 'Camera', icon: 'camera.fill', color: '#5E5E62' },
   { key: 'photos', label: 'Photos', icon: 'photo.on.rectangle', color: '#FF7A93' },
+  { key: 'stickers', label: 'Stickers', icon: 'face.smiling', color: '#9160EB' },
   { key: 'files', label: 'Files', icon: 'folder.fill', color: '#3B82F6' },
   { key: 'model', label: 'Model', icon: 'slider.horizontal.3', color: '#3A3A3C' },
   { key: 'checklist', label: 'Checklist', icon: 'checklist', color: '#F2A516' },
@@ -83,7 +84,7 @@ export function PlusMenu({
                   Haptics.selectionAsync();
                   onPick(it.key);
                 }}
-                style={({ pressed }) => [styles.item, pressed && { backgroundColor: 'rgba(120,120,128,0.18)' }, (i === 3 || i === 5) && styles.gap]}>
+                style={({ pressed }) => [styles.item, pressed && { backgroundColor: 'rgba(120,120,128,0.18)' }, (i === 4 || i === 6) && styles.gap]}>
                 <View style={[styles.icon, { backgroundColor: it.color }]}>
                   <SymbolView name={it.icon} size={22} tintColor="#fff" />
                 </View>

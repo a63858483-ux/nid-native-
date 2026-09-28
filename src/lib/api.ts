@@ -167,6 +167,10 @@ export const backgroundSet = (enabled: boolean) =>
 export type QuotaLimit = { kind: string; label: string; percent: number | null; resets_at: string | null };
 export const quotaGet = () => call('/api/quota') as Promise<{ limits: QuotaLimit[]; error?: string }>;
 
+/* ── stickers ── */
+export const stickersList = async () =>
+  ((await call('/api/stickers')) as { stickers: import('./stickers').Sticker[] }).stickers.filter((s) => (s as { status?: string }).status !== 'deleted');
+
 /* ── uploads ── */
 export type Attachment = { name: string; path: string; mime?: string; size?: number; is_image?: boolean };
 export async function upload(convId: string | null, files: { uri: string; name: string; mime: string }[]) {

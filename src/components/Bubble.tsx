@@ -7,15 +7,29 @@ import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { bubblePath, TAIL_W } from './bubble-path';
+import * as api from '@/lib/api';
 import { type Attachment, attachmentUrl, authHeaders } from '@/lib/api';
-import { FROSTED_HIS_BUBBLE } from '@/lib/config';
+import { API_BASE, FROSTED_HIS_BUBBLE } from '@/lib/config';
+import { stickerUrl, useStickers } from '@/lib/stickers';
+import type { Media } from '@/lib/text';
 import { inkOn, usePalette } from '@/lib/colors';
 
-type Props = { role: 'user' | 'assistant'; text: string; tail: boolean; myColor: string };
+type Props = { role: 'user' | 'assistant'; text: string; tail: boolean; myColor: string; big?: boolean };
 
 // One outline for body + tail. Without a tail the body starts at x=0, so the
 // SVG must not be shifted left, or the bubble lands 7pt off from its neighbours.
-export function Bubble({ role, text, tail, myColor }: Props) {
+export function Bubble({ role, text, tail, myColor, big }: Props) {
+  if (big) {
+    return (
+      <View style={[styles.wrap, role === 'user' ? styles.mine : styles.his]}>
+        <Text style={styles.bigEmoji}>{text}</Text>
+      </View>
+    );
+  }
+  return <TextBubble role={role} text={text} tail={tail} myColor={myColor} />;
+}
+
+function TextBubble({ role, text, tail, myColor }: Props) {
   const pal = usePalette();
   const [box, setBox] = useState<{ w: number; h: number } | null>(null);
   const mine = role === 'user';
@@ -69,6 +83,52 @@ export function InsideBubble({ tone, text }: { tone?: string; text: string }) {
   );
 }
 
+export function StickerBubble({ id, mine }: { id: string; mine: boolean }) {
+  useStickers(api.stickersList);
+  const url = stickerUrl(id);
+  return (
+    <View style={[styles.sticker, mine ? styles.mine : styles.his]}>
+      {url ? <Image source={url} style={StyleSheet.absoluteFill} contentFit="contain" transition={150} /> : null}
+    </View>
+  );
+}
+
+// Image paths he pastes into text (camera shots, screenshots, album photos).
+export function InlineImageBubble({ url, mine }: { url: string; mine: boolean }) {
+  const [ratio, setRatio] = useState(1.33);
+  const h = Math.max(120, Math.min(320, MAX_IMG / ratio));
+  return (
+    <View style={[styles.photo, mine ? styles.mine : styles.his, { width: MAX_IMG, height: h }]}>
+      <Image
+        source={{ uri: API_BASE + url, headers: authHeaders() }}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        transition={180}
+        onLoad={(e) => e.source?.width && e.source?.height && setRatio(e.source.width / e.source.height)}
+      />
+    </View>
+  );
+}
+
+const CARD_ICON = { doc: 'doc.fill', artifact: 'sparkles.rectangle.stack.fill', note: 'note.text', letter: 'envelope.fill' } as const;
+
+export function CardBubble({ media, mine, myColor }: { media: Extract<Media, { kind: 'card' }>; mine: boolean; myColor: string }) {
+  const pal = usePalette();
+  const bg = mine && myColor !== 'glass' ? myColor : pal.hisFill;
+  const ink = mine && myColor !== 'glass' ? inkOn(myColor) : pal.hisInk;
+  return (
+    <View style={[styles.file, mine ? styles.mine : styles.his, { backgroundColor: bg }]}>
+      <View style={[styles.fileIcon, { backgroundColor: pal.card }]}>
+        <SymbolView name={CARD_ICON[media.icon]} size={18} tintColor={pal.ink2} />
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text numberOfLines={1} style={[styles.fileName, { color: ink }]}>{media.title}</Text>
+        {media.sub ? <Text numberOfLines={1} style={[styles.fileMeta, { color: ink }]}>{media.sub}</Text> : null}
+      </View>
+    </View>
+  );
+}
+
 const MAX_IMG = 240;
 
 export function PhotoBubble({ convId, att, mine }: { convId: string; att: Attachment; mine: boolean }) {
@@ -117,6 +177,8 @@ const styles = StyleSheet.create({
   fileIcon: { width: 34, height: 42, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
   fileName: { fontSize: 15, fontWeight: '600' },
   fileMeta: { fontSize: 12, opacity: 0.65, marginTop: 2, fontVariant: ['tabular-nums'] },
+  bigEmoji: { fontSize: 52, lineHeight: 64 },
+  sticker: { width: 116, height: 116 },
   inside: { maxWidth: '82%', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7, borderCurve: 'continuous' },
   insideTone: { fontSize: 10.5, fontWeight: '600', opacity: 0.6, marginBottom: 2, letterSpacing: 0.3 },
   insideText: { fontSize: 13.5, lineHeight: 18, opacity: 0.92 },

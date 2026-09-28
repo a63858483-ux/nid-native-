@@ -9,7 +9,7 @@ import { KeyboardChatScrollView, KeyboardStickyView } from 'react-native-keyboar
 import Animated, { interpolate, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Bubble, FileBubble, InsideBubble, PhotoBubble } from '@/components/Bubble';
+import { Bubble, CardBubble, FileBubble, InlineImageBubble, InsideBubble, PhotoBubble, StickerBubble } from '@/components/Bubble';
 import { ChatHeader, EdgeBlur, HEADER_H } from '@/components/ChatHeader';
 import { Composer, type Pending } from '@/components/Composer';
 import { PlusMenu, type PlusAction } from '@/components/PlusMenu';
@@ -19,7 +19,7 @@ import { Typing } from '@/components/Typing';
 import * as api from '@/lib/api';
 import { usePalette, WallpaperContext } from '@/lib/colors';
 import { DEMO } from '@/lib/config';
-import { buildRows, type Row } from '@/lib/rows';
+import { buildRows, segmentsOf, type Row } from '@/lib/rows';
 import { wallpaperUri } from '@/lib/storage';
 import { useApp } from '@/state/app';
 import { useChat } from '@/state/chat';
@@ -44,11 +44,19 @@ const sendEnter = () => {
     },
   };
 };
+// His bubble grows out of the typing indicator's spot (bottom-left) instead of popping in place.
 const replyEnter = () => {
   'worklet';
   return {
-    initialValues: { opacity: 0, transform: [{ scale: 0.92 }] },
-    animations: { opacity: withTiming(1, { duration: 180 }), transform: [{ scale: withSpring(1, { damping: 14, stiffness: 220 }) }] },
+    initialValues: { opacity: 0, transform: [{ translateX: -6 }, { translateY: 8 }, { scale: 0.6 }] },
+    animations: {
+      opacity: withTiming(1, { duration: 140 }),
+      transform: [
+        { translateX: withSpring(0, { damping: 16, stiffness: 200 }) },
+        { translateY: withSpring(0, { damping: 16, stiffness: 200 }) },
+        { scale: withSpring(1, { damping: 15, stiffness: 190, mass: 0.9 }) },
+      ],
+    },
   };
 };
 
@@ -79,7 +87,32 @@ function ChatScreenInner() {
     const t = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(t);
   }, []);
-  const rows = useMemo(() => buildRows(items, now).reverse(), [items, now]);
+  // Fresh replies arrive one bubble at a time, with the typing indicator in between,
+  // the way a person sends several texts. History shows everything at once.
+  const [reveal, setReveal] = useState<Record<string, number>>({});
+  const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  useEffect(() => {
+    for (const it of items) {
+      if (it.role !== 'assistant' || !it.fresh) continue;
+      const segs = segmentsOf(it);
+      const done = it.status !== 'streaming';
+      const available = done ? segs.length : Math.max(0, segs.length - 1);
+      const shown = reveal[it.key] ?? 0;
+      if (shown >= available || timers.current[it.key]) continue;
+      const next = segs[shown];
+      const len = next?.kind === 'text' ? next.text.length : 6;
+      const delay = shown === 0 ? 420 : Math.min(2400, 450 + len * 26);
+      timers.current[it.key] = setTimeout(() => {
+        delete timers.current[it.key];
+        setReveal((r) => ({ ...r, [it.key]: (r[it.key] ?? 0) + 1 }));
+      }, delay);
+    }
+  }, [items, reveal]);
+  useEffect(() => {
+    const t = timers.current;
+    return () => Object.values(t).forEach(clearTimeout);
+  }, []);
+  const rows = useMemo(() => buildRows(items, now, reveal).reverse(), [items, now, reveal]);
   const wall = wallpaperUri(prefs.wallpaper);
 
   // Rounded corners + shadow as the drawer pushes the page aside.
@@ -168,6 +201,7 @@ function ChatScreenInner() {
     }
     if (a === 'photos') return pickPhotos(false);
     if (a === 'files') return pickFiles();
+    if (a === 'stickers') return router.push('/sheet/stickers');
     router.push(`/sheet/${a}`);
   };
 
@@ -210,6 +244,14 @@ function ChatScreenInner() {
         );
       }
       const mine = item.role === 'user';
+      if (item.type === 'inline') {
+        const m = item.media;
+        return (
+          <Animated.View entering={item.fresh ? (mine ? sendEnter : replyEnter) : undefined} style={item.gapAbove ? styles.gap : styles.tight}>
+            {m.kind === 'sticker' ? <StickerBubble id={m.id} mine={mine} /> : m.kind === 'image' ? <InlineImageBubble url={m.url} mine={mine} /> : <CardBubble media={m} mine={mine} myColor={prefs.bubble} />}
+          </Animated.View>
+        );
+      }
       if (item.type === 'media') {
         return (
           <Animated.View entering={item.fresh ? (mine ? sendEnter : replyEnter) : undefined} style={item.gapAbove ? styles.gap : styles.tight}>
@@ -228,7 +270,7 @@ function ChatScreenInner() {
           {item.thought && (
             <ThoughtLine label={item.thought.label} live={item.thought.live} icon={item.thought.icon} onPress={() => router.push({ pathname: '/sheet/thought', params: { key: item.itemKey } })} />
           )}
-          <Bubble role={item.role} text={item.text} tail={item.tail} myColor={prefs.bubble} />
+          <Bubble role={item.role} text={item.text} tail={item.tail} myColor={prefs.bubble} big={item.big} />
           {item.receipt ? <Text style={[styles.receipt, { color: pal.meta }, pal.wall && styles.shadow]}>{item.receipt}</Text> : null}
           {item.failed ? <Text style={styles.failed}>Not delivered: {item.failed}</Text> : null}
         </Animated.View>
@@ -286,7 +328,7 @@ const styles = StyleSheet.create({
   page: { flex: 1, overflow: 'hidden', borderCurve: 'continuous' },
   divider: { alignSelf: 'center', fontSize: 11.5, fontWeight: '500', paddingTop: 16, paddingBottom: 8 },
   gap: { marginTop: 10 },
-  tight: { marginTop: 4 },
+  tight: { marginTop: 3 },
   flash: { opacity: 0.55 },
   shadow: { textShadowColor: 'rgba(0,0,0,0.45)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
   receipt: { alignSelf: 'flex-end', fontSize: 11.5, fontWeight: '600', marginTop: 4, marginRight: 10 },
