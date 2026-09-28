@@ -19,17 +19,12 @@ export function Decorated({ mine, myColor, tapbacks, sticks, children }: { mine:
   if (box.h > 0)
     for (const s of sticks ?? []) {
       const half = stickSize(s) / 2;
-      over = { top: Math.max(over.top, half - s.y * box.h), bottom: Math.max(over.bottom, s.y * box.h + half - box.h) };
+      over = { top: Math.max(over.top, half - stickY(s) * box.h), bottom: Math.max(over.bottom, stickY(s) * box.h + half - box.h) };
     }
   return (
     <View
       style={[styles.wrap, mine ? styles.mine : styles.his, { marginTop: over.top, marginBottom: over.bottom }]}
-      onLayout={(e) =>
-        setBox({
-          w: e.nativeEvent.layout.width,
-          h: e.nativeEvent.layout.height,
-        })
-      }>
+      onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       {children}
       {tapbacks && tapbacks.length > 0 && (
         <View style={[styles.tapbacks, mine ? { left: -8 } : { right: -8 }]} pointerEvents="none">
@@ -51,16 +46,7 @@ export function Decorated({ mine, myColor, tapbacks, sticks, children }: { mine:
             <View
               key={i}
               pointerEvents="none"
-              style={[
-                styles.stick,
-                {
-                  left: s.x * box.w - size / 2,
-                  top: s.y * box.h - size / 2,
-                  width: size,
-                  height: size,
-                  transform: [{ rotate: `${s.angle}deg` }],
-                },
-              ]}>
+              style={[styles.stick, { left: s.x * box.w - size / 2, top: stickY(s) * box.h - size / 2, width: size, height: size, transform: [{ rotate: `${s.angle}deg` }] }]}>
               {url ? <Image source={url} style={{ width: size, height: size }} contentFit="contain" /> : <Text style={styles.stickEmoji}>{s.what}</Text>}
             </View>
           );
@@ -70,6 +56,8 @@ export function Decorated({ mine, myColor, tapbacks, sticks, children }: { mine:
 }
 
 const stickSize = (s: Stick) => (s.what.startsWith('sticker:') ? 72 : 54);
+// Older markers (and his) may say "top corner"; keep every sticker on the lower edge, off the words.
+const stickY = (s: Stick) => Math.max(s.y, 0.95);
 
 // The little quoted bubble above a reply, with Messages' curved connector down to it.
 export function ReplyQuote({ quote, replyMine, replies, onOpen }: { quote: Quote; replyMine: boolean; replies?: number; onOpen: () => void }) {
@@ -126,43 +114,14 @@ const styles = StyleSheet.create({
   mine: { alignSelf: 'flex-end' },
   his: { alignSelf: 'flex-start' },
   tapbacks: { position: 'absolute', top: -14, flexDirection: 'row' },
-  tapback: {
-    height: 26,
-    minWidth: 30,
-    paddingHorizontal: 7,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(0,0,0,0.15)',
-  },
+  tapback: { height: 26, minWidth: 30, paddingHorizontal: 7, borderRadius: 13, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(0,0,0,0.15)' },
   tapbackEmoji: { fontSize: 14, lineHeight: 18 },
   stickEmoji: { fontSize: 44, lineHeight: 54 },
-  stick: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  stick: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
   quoteWrap: { marginTop: 8, marginLeft: TAIL_W },
-  quote: {
-    maxWidth: '78%',
-    borderRadius: 14,
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    borderCurve: 'continuous',
-  },
+  quote: { maxWidth: '78%', borderRadius: 14, paddingHorizontal: 11, paddingVertical: 6, borderCurve: 'continuous' },
   quoteText: { fontSize: 13, lineHeight: 17 },
-  connectorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginLeft: 4,
-  },
-  repliesBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 4,
-  },
+  connectorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 4 },
+  repliesBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 },
   replies: { fontSize: 13, fontWeight: '600' },
 });

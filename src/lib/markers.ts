@@ -40,14 +40,12 @@ const snippet = (t: string) => t.replace(/\s+/g, ' ').replace(/"/g, '”').trim(
 const refOf = (id: number | undefined, text: string) => `${id ? `#${id} ` : ''}"${snippet(text)}"`;
 
 export const replyMarker = (id: number | undefined, text: string) => `[reply:${refOf(id, text)}]`;
-export const tapbackMarker = (id: number | undefined, text: string, emoji: string, off = false) =>
-  `[tapback:${refOf(id, text)}:${emoji}${off ? ':off' : ''}]`;
+export const tapbackMarker = (id: number | undefined, text: string, emoji: string, off = false) => `[tapback:${refOf(id, text)}:${emoji}${off ? ':off' : ''}]`;
 export function stickMarker(id: number | undefined, text: string, what: string) {
-  // random spot along the bubble's edge, a little tilted, like a sticker slapped on
-  const edge = Math.random();
-  const x = edge < 0.5 ? 0.78 + Math.random() * 0.22 : Math.random() * 0.22;
-  const y = Math.random() < 0.5 ? Math.random() * 0.25 : 0.7 + Math.random() * 0.3;
-  const angle = Math.round((Math.random() - 0.5) * 40);
+  // Messages drops it on the bubble's lower edge, mostly hanging below, so the words stay clear
+  const x = 0.3 + Math.random() * 0.65;
+  const y = 0.95 + Math.random() * 0.25;
+  const angle = Math.round((Math.random() - 0.5) * 50);
   return `[stick:${refOf(id, text)}:${what}:${x.toFixed(2)}:${y.toFixed(2)}:${angle}]`;
 }
 
