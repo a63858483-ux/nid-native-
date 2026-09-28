@@ -14,22 +14,23 @@ import { stickerUrl, useStickers } from '@/lib/stickers';
 import type { Media } from '@/lib/text';
 import { inkOn, usePalette } from '@/lib/colors';
 
-type Props = { role: 'user' | 'assistant'; text: string; tail: boolean; myColor: string; big?: boolean };
+// `boxed`: the parent already caps the width (Decorated), so don't cap again.
+type Props = { role: 'user' | 'assistant'; text: string; tail: boolean; myColor: string; big?: boolean; boxed?: boolean };
 
 // One outline for body + tail. Without a tail the body starts at x=0, so the
 // SVG must not be shifted left, or the bubble lands 7pt off from its neighbours.
-export function Bubble({ role, text, tail, myColor, big }: Props) {
+export function Bubble({ role, text, tail, myColor, big, boxed }: Props) {
   if (big) {
     return (
-      <View style={[styles.wrap, role === 'user' ? styles.mine : styles.his]}>
+      <View style={[boxed ? styles.wrapBoxed : styles.wrap, role === 'user' ? styles.mine : styles.his]}>
         <Text style={styles.bigEmoji}>{text}</Text>
       </View>
     );
   }
-  return <TextBubble role={role} text={text} tail={tail} myColor={myColor} />;
+  return <TextBubble role={role} text={text} tail={tail} myColor={myColor} boxed={boxed} />;
 }
 
-function TextBubble({ role, text, tail, myColor }: Props) {
+function TextBubble({ role, text, tail, myColor, boxed }: Props) {
   const pal = usePalette();
   const [box, setBox] = useState<{ w: number; h: number } | null>(null);
   const mine = role === 'user';
@@ -46,7 +47,7 @@ function TextBubble({ role, text, tail, myColor }: Props) {
     : null;
 
   return (
-    <View style={[styles.wrap, mine ? styles.mine : styles.his]}>
+    <View style={[boxed ? styles.wrapBoxed : styles.wrap, mine ? styles.mine : styles.his]}>
       {box && shapeStyle && frosted && FROSTED_HIS_BUBBLE && (
         <MaskedView
           style={shapeStyle}
@@ -168,6 +169,7 @@ export function FileBubble({ att, mine, myColor }: { att: Attachment; mine: bool
 
 const styles = StyleSheet.create({
   wrap: { maxWidth: '76%' },
+  wrapBoxed: {},
   mine: { alignSelf: 'flex-end', marginRight: TAIL_W },
   his: { alignSelf: 'flex-start', marginLeft: TAIL_W },
   pad: { paddingHorizontal: 14, paddingTop: 7, paddingBottom: 8 },

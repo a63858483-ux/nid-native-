@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Footnote } from '@/components/Group';
@@ -8,6 +8,7 @@ import { SheetHeader } from '@/components/SheetHeader';
 import * as api from '@/lib/api';
 import { usePalette } from '@/lib/colors';
 import { API_BASE } from '@/lib/config';
+import { stickMarker } from '@/lib/markers';
 import { useStickers } from '@/lib/stickers';
 import { useChat } from '@/state/chat';
 
@@ -15,13 +16,18 @@ import { useChat } from '@/state/chat';
 export default function StickersSheet() {
   const pal = usePalette();
   const { send } = useChat();
+  // Opened from a bubble's long-press menu: the sticker gets stuck onto that message instead of sent.
+  const { stick, id, quote } = useLocalSearchParams<{ stick?: string; id?: string; quote?: string }>();
+  const sticking = stick === '1';
   const list = useStickers(api.stickersList);
   const mine = (list ?? []).filter((s) => s.owner === 'user');
   const his = (list ?? []).filter((s) => s.owner !== 'user');
+  const id_ = id;
   const pick = (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.back();
-    setTimeout(() => send(`[sticker:${id}]`), 150);
+    const text = sticking ? stickMarker(id_ ? Number(id_) : undefined, quote ?? '', `sticker:${id}`) : `[sticker:${id}]`;
+    setTimeout(() => send(text), 150);
   };
   const grid = (items: typeof mine) => (
     <View style={styles.grid}>
@@ -34,7 +40,7 @@ export default function StickersSheet() {
   );
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: 30 }}>
-      <SheetHeader title="Stickers" />
+      <SheetHeader title={sticking ? 'Attach Sticker' : 'Stickers'} />
       {list === null ? (
         <ActivityIndicator style={{ marginTop: 30 }} />
       ) : (

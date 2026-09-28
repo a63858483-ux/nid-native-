@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { router, useNavigation } from 'expo-router';
 import { useDrawerProgress } from 'expo-router/drawer';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DeviceEventEmitter, FlatList, Settings, StyleSheet, Text, View, type ScrollViewProps } from 'react-native';
+import { DeviceEventEmitter, FlatList, Pressable, Settings, StyleSheet, Text, View, type ScrollViewProps } from 'react-native';
 import { KeyboardChatScrollView, KeyboardStickyView } from 'react-native-keyboard-controller';
 import Animated, { interpolate, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,6 +12,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bubble, CardBubble, FileBubble, InlineImageBubble, InsideBubble, PhotoBubble, StickerBubble } from '@/components/Bubble';
 import { ChatHeader, EdgeBlur, HEADER_H } from '@/components/ChatHeader';
 import { Composer, type Pending } from '@/components/Composer';
+import { Decorated, RepliesLink, ReplyQuote } from '@/components/Decor';
+import { MessageMenu, type MenuAction } from '@/components/MessageMenu';
 import { PlusMenu, type PlusAction } from '@/components/PlusMenu';
 import { FOCUS_EVENT } from '@/components/Sidebar';
 import { ThoughtLine } from '@/components/ThoughtLine';
@@ -19,6 +21,7 @@ import { Typing } from '@/components/Typing';
 import * as api from '@/lib/api';
 import { usePalette, WallpaperContext } from '@/lib/colors';
 import { DEMO } from '@/lib/config';
+import { parseReply, tapbackMarker } from '@/lib/markers';
 import { buildRows, segmentsOf, type Row } from '@/lib/rows';
 import { wallpaperUri } from '@/lib/storage';
 import { useApp } from '@/state/app';
@@ -81,6 +84,9 @@ function ChatScreenInner() {
   const [pending, setPending] = useState<Pending[]>([]);
   const [now, setNow] = useState(() => Date.now());
   const list = useRef<FlatList<Row>>(null);
+  // Long-pressed bubble: where it sits on screen and which row it is.
+  const [menu, setMenu] = useState<{ row: Extract<Row, { type: 'bubble' }>; rect: { x: number; y: number; w: number; h: number } } | null>(null);
+  const bubbleRefs = useRef<Record<string, View | null>>({});
 
   // Time labels (Today / Yesterday / weekday) move on their own as the clock does.
   useEffect(() => {
@@ -211,6 +217,34 @@ function ChatScreenInner() {
     send(text, atts);
   };
 
+  const targetOf = (row: Extract<Row, { type: 'bubble' }>) => {
+    const it = items.find((i) => i.key === row.itemKey);
+    const body = it ? (parseReply(it.text)?.rest ?? it.text) : row.text;
+    return { id: it?.id, body };
+  };
+  const openThread = (itemKey: string) => router.push({ pathname: '/thread/[key]', params: { key: itemKey } });
+  const longPress = (row: Extract<Row, { type: 'bubble' }>) => {
+    const v = bubbleRefs.current[row.key];
+    if (!v) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    v.measureInWindow((x, y, w, h) => setMenu({ row, rect: { x, y, w, h } }));
+  };
+  const onTapback = (emoji: string) => {
+    if (!menu) return;
+    const { id, body } = targetOf(menu.row);
+    const on = (menu.row.tapbacks ?? []).some((t) => t.mine && t.emoji === emoji);
+    setMenu(null);
+    send(tapbackMarker(id, body, emoji, on));
+  };
+  const onMenuAction = (a: MenuAction) => {
+    if (!menu) return;
+    const row = menu.row;
+    setMenu(null);
+    if (a === 'reply') return openThread(row.itemKey);
+    const { id, body } = targetOf(row);
+    router.push({ pathname: '/sheet/stickers', params: { stick: '1', id: id ? String(id) : '', quote: body.slice(0, 40) } });
+  };
+
   const renderScroll = useCallback(
     (props: ScrollViewProps) => <KeyboardChatScrollView {...props} inverted keyboardLiftBehavior="always" offset={insets.bottom} />,
     [insets.bottom],
@@ -270,13 +304,25 @@ function ChatScreenInner() {
           {item.thought && (
             <ThoughtLine label={item.thought.label} live={item.thought.live} icon={item.thought.icon} onPress={() => router.push({ pathname: '/sheet/thought', params: { key: item.itemKey } })} />
           )}
-          <Bubble role={item.role} text={item.text} tail={item.tail} myColor={prefs.bubble} big={item.big} />
+          {item.quote && <ReplyQuote quote={item.quote} replyMine={mine} onOpen={() => openThread(item.quote!.targetKey)} />}
+          <Decorated mine={mine} myColor={prefs.bubble} tapbacks={item.tapbacks} sticks={item.sticks}>
+            <Pressable
+              ref={(v) => {
+                bubbleRefs.current[item.key] = v;
+              }}
+              onLongPress={() => longPress(item)}
+              delayLongPress={280}
+              style={{ opacity: menu?.row.key === item.key ? 0 : 1 }}>
+              <Bubble role={item.role} text={item.text} tail={item.tail} myColor={prefs.bubble} big={item.big} boxed />
+            </Pressable>
+          </Decorated>
+          {item.replies ? <RepliesLink count={item.replies} mine={mine} onOpen={() => openThread(item.itemKey)} /> : null}
           {item.receipt ? <Text style={[styles.receipt, { color: pal.meta }, pal.wall && styles.shadow]}>{item.receipt}</Text> : null}
           {item.failed ? <Text style={styles.failed}>Not delivered: {item.failed}</Text> : null}
         </Animated.View>
       );
     },
-    [pal.meta, pal.wall, prefs.bubble, flash, convId],
+    [pal.meta, pal.wall, prefs.bubble, flash, convId, menu?.row.key],
   );
 
   return (
@@ -318,6 +364,18 @@ function ChatScreenInner() {
           />
         </View>
       </KeyboardStickyView>
+
+      {menu && (
+        <MessageMenu
+          rect={menu.rect}
+          mine={menu.row.role === 'user'}
+          active={(menu.row.tapbacks ?? []).filter((t) => t.mine).map((t) => t.emoji)}
+          bubble={<Bubble role={menu.row.role} text={menu.row.text} tail={menu.row.tail} myColor={prefs.bubble} big={menu.row.big} boxed />}
+          onClose={() => setMenu(null)}
+          onTapback={onTapback}
+          onAction={onMenuAction}
+        />
+      )}
 
       <PlusMenu open={plusOpen} bottomInset={insets.bottom} topInset={insets.top + HEADER_H} note={`${MODEL_LABEL[prefs.model] ?? 'More'} · ${prefs.effort}`} onClose={() => setPlusOpen(false)} onPick={pick} />
     </Animated.View>

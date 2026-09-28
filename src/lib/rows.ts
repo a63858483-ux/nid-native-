@@ -1,9 +1,13 @@
 import type { Attachment, Inside } from './api';
+import { parseReply, parseStick, parseTapback, resolveRef, type Stick } from './markers';
 import { emojiOnly, parseMessage, splitBubbles, type Media } from './text';
 import { collapseSteps } from './traces';
 import type { Item } from '@/state/chat';
 
 type Thought = { label: string; live: boolean; icon?: string };
+export type Quote = { targetKey: string; text: string; role: 'user' | 'assistant' };
+export type TapbackView = { emoji: string; mine: boolean };
+export type Decor = { tapbacks: TapbackView[]; sticks: Stick[]; replies: number };
 
 export type Row =
   | { type: 'divider'; key: string; label: string }
@@ -20,6 +24,10 @@ export type Row =
       receipt?: string;
       fresh?: boolean;
       failed?: string;
+      quote?: Quote;
+      replies?: number;
+      tapbacks?: TapbackView[];
+      sticks?: Stick[];
     }
   | { type: 'media'; key: string; itemKey: string; role: 'user' | 'assistant'; att: Attachment; gapAbove: boolean; fresh?: boolean }
   | { type: 'inline'; key: string; itemKey: string; role: 'user' | 'assistant'; media: Media; gapAbove: boolean; fresh?: boolean }
@@ -61,7 +69,8 @@ export type Segment = { kind: 'text'; text: string } | { kind: 'media'; media: M
 
 // A message becomes segments in display order: paragraphs, then inline media/stickers/cards.
 export function segmentsOf(it: Item): Segment[] {
-  const { text, media } = parseMessage(it.text);
+  const body = parseReply(it.text)?.rest ?? it.text;
+  const { text, media } = parseMessage(body);
   const segs: Segment[] = splitBubbles(text).map((p) => ({ kind: 'text', text: p }));
   for (const m of media) segs.push({ kind: 'media', media: m });
   return segs;
@@ -69,15 +78,70 @@ export function segmentsOf(it: Item): Segment[] {
 
 // Items (oldest → newest) become display rows, also oldest → newest.
 // `reveal` caps how many segments of a fresh reply are shown yet (they arrive one by one).
+// Reactions and reply links live in other messages; gather them per target first.
+export function decorate(items: Item[]) {
+  const decor = new Map<string, Decor>();
+  const quotes = new Map<string, Quote>();
+  const hidden = new Set<string>();
+  const get = (k: string) => {
+    let d = decor.get(k);
+    if (!d) decor.set(k, (d = { tapbacks: [], sticks: [], replies: 0 }));
+    return d;
+  };
+  items.forEach((it, idx) => {
+    const tb = parseTapback(it.text);
+    if (tb) {
+      hidden.add(it.key);
+      const t = resolveRef(tb.ref, items, idx);
+      if (!t) return;
+      const d = get(t.key);
+      const mine = it.role === 'user';
+      d.tapbacks = d.tapbacks.filter((x) => !(x.mine === mine && x.emoji === tb.emoji));
+      if (!tb.off) d.tapbacks.push({ emoji: tb.emoji, mine });
+      return;
+    }
+    const st = parseStick(it.text);
+    if (st) {
+      hidden.add(it.key);
+      const t = resolveRef(st.ref, items, idx);
+      if (t) get(t.key).sticks.push(st);
+      return;
+    }
+    const rp = parseReply(it.text);
+    if (rp) {
+      const t = resolveRef(rp.ref, items, idx);
+      if (t) {
+        get(t.key).replies += 1;
+        quotes.set(it.key, { targetKey: t.key, text: parseMessage(parseReply(t.text)?.rest ?? t.text).text.slice(0, 80) || '…', role: t.role });
+      }
+    }
+  });
+  return { decor, quotes, hidden };
+}
+
+// Everything in one reply thread: the original plus the messages replying to it.
+export function threadOf(items: Item[], targetKey: string): Item[] {
+  const root = items.find((i) => i.key === targetKey);
+  if (!root) return [];
+  const out = [root];
+  items.forEach((it, idx) => {
+    const rp = parseReply(it.text);
+    if (rp && resolveRef(rp.ref, items, idx)?.key === targetKey) out.push(it);
+  });
+  return out;
+}
+
 export function buildRows(items: Item[], now = Date.now(), reveal: Record<string, number> = {}): Row[] {
   const rows: Row[] = [];
   let prevTs = 0;
   let prevRole: string | null = null;
+  const { decor, quotes, hidden } = decorate(items);
 
   const lastUser = [...items].reverse().find((i) => i.role === 'user');
   const replyAfter = lastUser ? items[items.indexOf(lastUser) + 1] : undefined;
 
   items.forEach((it) => {
+    if (hidden.has(it.key)) return;
     const t = new Date(it.ts).getTime();
     if (!prevTs || t - prevTs > HOUR) {
       rows.push({ type: 'divider', key: `d-${it.key}`, label: dayLabel(it.ts, now) });
@@ -119,6 +183,10 @@ export function buildRows(items: Item[], now = Date.now(), reveal: Record<string
           thought: idx === 0 ? thought : undefined,
           fresh: it.fresh,
           failed: idx === segs.length - 1 ? it.error : undefined,
+          quote: idx === 0 ? quotes.get(it.key) : undefined,
+          replies: idx === segs.length - 1 ? decor.get(it.key)?.replies || undefined : undefined,
+          tapbacks: idx === segs.length - 1 ? decor.get(it.key)?.tapbacks : undefined,
+          sticks: idx === segs.length - 1 ? decor.get(it.key)?.sticks : undefined,
         });
       }
       prevRole = it.role;
