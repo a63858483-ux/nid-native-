@@ -55,6 +55,9 @@ export function Composer({
   // iMessage: the typed text tints to the bubble colour in place, then leaves the field.
   const morphSt = useAnimatedStyle(() => ({ opacity: morph.value }));
 
+  const tint = pal.wall ? 'rgba(30,30,32,0.5)' : undefined;
+  const ink = pal.wall ? '#FFFFFF' : pal.ink;
+  const ink2 = pal.wall ? 'rgba(255,255,255,0.6)' : pal.ink2;
   const sendColor = myColor === 'glass' ? pal.blue : myColor;
   const sendInk = myColor === 'glass' ? '#fff' : inkOn(sendColor);
   const submit = () => {
@@ -67,13 +70,13 @@ export function Composer({
   return (
     <View style={styles.row}>
       <Pressable onPress={onPlus} accessibilityLabel="More">
-        <Glass interactive style={styles.circle}>
+        <Glass interactive tint={tint} style={styles.circle}>
           <Animated.View style={plusSt}>
-            <SymbolView name="plus" size={20} weight="medium" tintColor={pal.ink} />
+            <SymbolView name="plus" size={20} weight="medium" tintColor={ink} />
           </Animated.View>
         </Glass>
       </Pressable>
-      <Glass style={styles.pill}>
+      <Glass tint={tint} style={styles.pill}>
         {pending.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="always">
             {pending.map((p) => (
@@ -99,9 +102,9 @@ export function Composer({
               value={text}
               onChangeText={setText}
               placeholder={placeholder}
-              placeholderTextColor={pal.ink2}
+              placeholderTextColor={ink2}
               multiline
-              style={[styles.input, { color: pal.ink }]}
+              style={[styles.input, { color: ink }]}
             />
             <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.morph, { backgroundColor: sendColor }, morphSt]}>
               <Text numberOfLines={5} style={[styles.input, { color: sendInk }]}>{text}</Text>
@@ -109,7 +112,7 @@ export function Composer({
           </View>
           <View style={styles.action}>
             <Animated.View style={[StyleSheet.absoluteFill, styles.center, micSt]} pointerEvents={ready ? 'none' : 'auto'}>
-              <SymbolView name="mic" size={19} tintColor={pal.ink2} />
+              <SymbolView name="mic" size={19} tintColor={ink2} />
             </Animated.View>
             <Animated.View style={[StyleSheet.absoluteFill, sendSt]} pointerEvents={ready ? 'auto' : 'none'}>
               <Pressable onPress={submit} accessibilityLabel="Send" style={[styles.send, { backgroundColor: sendColor }]}>

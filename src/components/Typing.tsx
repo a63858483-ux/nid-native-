@@ -18,10 +18,10 @@ function Dot({ delay, color }: { delay: number; color: string }) {
 // iMessage typing indicator: a pill with two little trailing circles for a tail.
 export function Typing() {
   const pal = usePalette();
-  const dotColor = pal.dark ? '#AEAEB2' : '#8E8E93';
+  const dotColor = pal.chrome ? '#C7C7CC' : '#8E8E93';
   const frost = (style: object) => (
     <View style={[style, { overflow: 'hidden' }]}>
-      <BlurView tint={pal.dark ? 'systemThinMaterialDark' : 'systemThinMaterialLight'} intensity={60} style={StyleSheet.absoluteFill} />
+      <BlurView tint={pal.chrome ? 'systemThinMaterialDark' : 'systemThinMaterialLight'} intensity={60} style={StyleSheet.absoluteFill} />
       <View style={[StyleSheet.absoluteFill, { backgroundColor: pal.hisFill }]} />
     </View>
   );

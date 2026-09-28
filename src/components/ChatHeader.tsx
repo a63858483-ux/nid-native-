@@ -38,25 +38,27 @@ export function EdgeBlur({ height, from }: { height: number; from: 'top' | 'bott
 export function ChatHeader({ name, onMenu, onName, onCall }: { name: string; onMenu: () => void; onName: () => void; onCall: () => void }) {
   const insets = useSafeAreaInsets();
   const pal = usePalette();
+  const tint = pal.wall ? 'rgba(30,30,32,0.5)' : undefined;
+  const ink = pal.wall ? '#FFFFFF' : pal.ink;
   return (
     <View style={[styles.bar, { paddingTop: insets.top + 6 }]} pointerEvents="box-none">
       <Pressable onPress={onMenu} accessibilityLabel="Menu">
-        <Glass interactive style={styles.circle}>
-          <SymbolView name="line.3.horizontal" size={19} weight="medium" tintColor={pal.ink} />
+        <Glass interactive tint={tint} style={styles.circle}>
+          <SymbolView name="line.3.horizontal" size={19} weight="medium" tintColor={ink} />
         </Glass>
       </Pressable>
       <View style={styles.who}>
         <Image source={AVATAR_HIM} style={styles.avatar} contentFit="cover" transition={200} />
         <Pressable onPress={onName}>
-          <Glass interactive style={styles.name}>
-            <Text style={[styles.nameText, { color: pal.ink }]}>{name}</Text>
-            <SymbolView name="chevron.right" size={9} weight="bold" tintColor={pal.ink2} />
+          <Glass interactive tint={tint} style={styles.name}>
+            <Text style={[styles.nameText, { color: ink }]}>{name}</Text>
+            <SymbolView name="chevron.right" size={9} weight="bold" tintColor={pal.wall ? 'rgba(255,255,255,0.6)' : pal.ink2} />
           </Glass>
         </Pressable>
       </View>
       <Pressable onPress={onCall} accessibilityLabel="Call">
-        <Glass interactive style={styles.circle}>
-          <SymbolView name="phone" size={18} tintColor={pal.ink} />
+        <Glass interactive tint={tint} style={styles.circle}>
+          <SymbolView name="phone" size={18} tintColor={ink} />
         </Glass>
       </Pressable>
     </View>

@@ -1,3 +1,4 @@
+import * as FileSystem from 'expo-file-system/legacy';
 import { fetch as streamFetch } from 'expo/fetch';
 
 import { API_BASE, MAIN_TITLE } from './config';
@@ -163,13 +164,24 @@ export const quotaGet = () => call('/api/quota') as Promise<{ limits: QuotaLimit
 /* ── uploads ── */
 export type Attachment = { name: string; path: string; mime?: string; size?: number; is_image?: boolean };
 export async function upload(convId: string | null, files: { uri: string; name: string; mime: string }[]) {
-  const form = new FormData();
-  if (convId) form.append('conversation_id', convId);
-  for (const f of files) form.append('files', { uri: f.uri, name: f.name, type: f.mime } as unknown as Blob);
-  const res = await fetch(`${API_BASE}/api/upload`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form });
-  if (res.status === 401) throw new AuthError('unauthorized');
-  if (!res.ok) throw new Error(`upload ${res.status}`);
-  return (await res.json()) as { conversation_id: string; attachments: Attachment[] };
+  const attachments: Attachment[] = [];
+  let conversation_id = convId ?? '';
+  for (const f of files) {
+    const res = await FileSystem.uploadAsync(`${API_BASE}/api/upload`, f.uri, {
+      httpMethod: 'POST',
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      fieldName: 'files',
+      mimeType: f.mime,
+      parameters: conversation_id ? { conversation_id } : {},
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.status === 401) throw new AuthError('unauthorized');
+    if (res.status < 200 || res.status >= 300) throw new Error(`upload ${res.status}: ${res.body.slice(0, 120)}`);
+    const data = JSON.parse(res.body) as { conversation_id: string; attachments: Attachment[] };
+    conversation_id = data.conversation_id;
+    attachments.push(...data.attachments);
+  }
+  return { conversation_id, attachments };
 }
 // Uploaded files are served per conversation; the server stores the absolute path.
 export function attachmentUrl(convId: string, a: Attachment) {

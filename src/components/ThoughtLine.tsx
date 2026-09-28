@@ -6,6 +6,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } fr
 import { TAIL_W } from './bubble-path';
 import { usePalette } from '@/lib/colors';
 
+
 export function ThoughtLine({ label, live, onPress }: { label: string; live: boolean; onPress: () => void }) {
   const pal = usePalette();
   const pulse = useSharedValue(1);

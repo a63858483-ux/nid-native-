@@ -17,7 +17,7 @@ import { FOCUS_EVENT } from '@/components/Sidebar';
 import { ThoughtLine } from '@/components/ThoughtLine';
 import { Typing } from '@/components/Typing';
 import * as api from '@/lib/api';
-import { usePalette } from '@/lib/colors';
+import { usePalette, WallpaperContext } from '@/lib/colors';
 import { DEMO } from '@/lib/config';
 import { buildRows, type Row } from '@/lib/rows';
 import { wallpaperUri } from '@/lib/storage';
@@ -53,6 +53,15 @@ const replyEnter = () => {
 };
 
 export default function ChatScreen() {
+  const { prefs: p0 } = useApp();
+  return (
+    <WallpaperContext value={!!wallpaperUri(p0.wallpaper)}>
+      <ChatScreenInner />
+    </WallpaperContext>
+  );
+}
+
+function ChatScreenInner() {
   const insets = useSafeAreaInsets();
   const pal = usePalette();
   const nav = useNavigation<{ openDrawer: () => void }>();
@@ -115,9 +124,9 @@ export default function ChatScreen() {
             return i >= 0 ? { ...p, uploading: false, att: attachments[i] } : p;
           }),
         );
-      } catch {
+      } catch (e) {
         setPending((cur) => cur.filter((p) => !locals.some((l) => l.local === p.local)));
-        showToast("Couldn't upload that. Try again.");
+        showToast(e instanceof Error ? `Upload failed: ${e.message}` : "Couldn't upload that. Try again.");
       }
     },
     [convId, showToast],
@@ -133,13 +142,13 @@ export default function ChatScreen() {
   };
   const pickFiles = async () => {
     // The document picker is native: dev builds made before it was added don't have it.
-    let DocumentPicker: typeof import('expo-document-picker');
+    let res: import('expo-document-picker').DocumentPickerResult;
     try {
-      DocumentPicker = await import('expo-document-picker');
+      const DocumentPicker = await import('expo-document-picker');
+      res = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: true });
     } catch {
       return showToast('Files need the newer app build');
     }
-    const res = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: true });
     if (res.canceled) return;
     addFiles(res.assets.map((a) => ({ uri: a.uri, name: a.name, mime: a.mimeType || 'application/octet-stream', isImage: !!a.mimeType?.startsWith('image/') })));
   };
@@ -169,7 +178,7 @@ export default function ChatScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: Row }) => {
-      if (item.type === 'divider') return <Text style={[styles.divider, { color: pal.meta }]}>{item.label}</Text>;
+      if (item.type === 'divider') return <Text style={[styles.divider, { color: pal.meta }, pal.wall && styles.shadow]}>{item.label}</Text>;
       if (item.type === 'typing') {
         return (
           <View style={styles.gap}>
@@ -198,12 +207,12 @@ export default function ChatScreen() {
             <ThoughtLine label={item.thought.label} live={item.thought.live} onPress={() => router.push({ pathname: '/sheet/thought', params: { key: item.itemKey } })} />
           )}
           <Bubble role={item.role} text={item.text} tail={item.tail} myColor={prefs.bubble} />
-          {item.receipt ? <Text style={[styles.receipt, { color: pal.meta }]}>{item.receipt}</Text> : null}
+          {item.receipt ? <Text style={[styles.receipt, { color: pal.meta }, pal.wall && styles.shadow]}>{item.receipt}</Text> : null}
           {item.failed ? <Text style={styles.failed}>Not delivered: {item.failed}</Text> : null}
         </Animated.View>
       );
     },
-    [pal.meta, prefs.bubble, flash, convId],
+    [pal.meta, pal.wall, prefs.bubble, flash, convId],
   );
 
   return (
@@ -230,7 +239,7 @@ export default function ChatScreen() {
 
       <ChatHeader name={prefs.name} onMenu={() => nav.openDrawer()} onName={() => router.push('/sheet/name')} onCall={() => showToast('Calls come in a later step')} />
 
-      <PlusMenu open={plusOpen} bottom={insets.bottom + composerH + 6} note={`${MODEL_LABEL[prefs.model] ?? 'More'} · ${prefs.effort}`} onClose={() => setPlusOpen(false)} onPick={pick} />
+      <PlusMenu open={plusOpen} bottom={insets.bottom + composerH + 6} topInset={insets.top + HEADER_H} note={`${MODEL_LABEL[prefs.model] ?? 'More'} · ${prefs.effort}`} onClose={() => setPlusOpen(false)} onPick={pick} />
 
       <KeyboardStickyView offset={{ closed: 0, opened: insets.bottom - 6 }} style={styles.dock}>
         <View onLayout={(e) => setComposerH(e.nativeEvent.layout.height)} style={{ paddingBottom: insets.bottom + 6 }}>
@@ -257,6 +266,7 @@ const styles = StyleSheet.create({
   gap: { marginTop: 10 },
   tight: { marginTop: 2 },
   flash: { opacity: 0.55 },
+  shadow: { textShadowColor: 'rgba(0,0,0,0.45)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
   receipt: { alignSelf: 'flex-end', fontSize: 11.5, fontWeight: '600', marginTop: 4, marginRight: 10 },
   failed: { alignSelf: 'flex-end', fontSize: 11.5, color: '#FF3B30', marginTop: 4, marginRight: 10 },
   empty: { textAlign: 'center', marginTop: 40, fontSize: 14, transform: [{ scaleY: -1 }] },
