@@ -12,7 +12,8 @@
       "bundleIdentifier": "top.xiaoketata.nid.native",
       "supportsTablet": false,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "EXDevMenuShowFloatingActionButton": false
       }
     },
     "plugins": [
