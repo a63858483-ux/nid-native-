@@ -21,7 +21,7 @@ jobs:
     env:
       CONFIG: ${{ inputs.kind == 'release' && 'Release' || 'Debug' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Pick newest Xcode 26
         run: |
@@ -29,12 +29,18 @@ jobs:
           sudo xcode-select -s "$XC"
           xcodebuild -version
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
 
-      - run: npm ci
+      - name: Install dependencies
+        run: |
+          for i in 1 2 3; do
+            npm ci --no-audit --no-fund --loglevel=http && exit 0
+            echo "npm ci failed (attempt $i), retrying"; rm -rf node_modules; sleep 10
+          done
+          exit 1
 
       - name: Generate native project
         run: npx expo prebuild --platform ios --clean
@@ -66,19 +72,25 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Pick newest Xcode 26
         run: |
           XC=$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)
           sudo xcode-select -s "$XC"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
 
-      - run: npm ci
+      - name: Install dependencies
+        run: |
+          for i in 1 2 3; do
+            npm ci --no-audit --no-fund --loglevel=http && exit 0
+            echo "npm ci failed (attempt $i), retrying"; rm -rf node_modules; sleep 10
+          done
+          exit 1
 
       - name: Generate native project
         run: npx expo prebuild --platform ios --clean
