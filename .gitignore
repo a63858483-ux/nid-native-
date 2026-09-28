@@ -41,3 +41,9 @@ example
 # generated native folders
 /ios
 /android
+
+# secrets never go in this public repo
+.env
+.env.*
+!.env.example
+*.token
