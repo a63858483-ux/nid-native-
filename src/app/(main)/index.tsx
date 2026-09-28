@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
   page: { flex: 1, overflow: 'hidden', borderCurve: 'continuous' },
   divider: { alignSelf: 'center', fontSize: 11.5, fontWeight: '600', paddingTop: 16, paddingBottom: 8 },
   gap: { marginTop: 10 },
-  tight: { marginTop: 2 },
+  tight: { marginTop: 4 },
   flash: { opacity: 0.55 },
   shadow: { textShadowColor: 'rgba(0,0,0,0.45)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
   receipt: { alignSelf: 'flex-end', fontSize: 11.5, fontWeight: '600', marginTop: 4, marginRight: 10 },

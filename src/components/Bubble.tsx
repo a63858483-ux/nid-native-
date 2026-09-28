@@ -41,7 +41,7 @@ export function Bubble({ role, text, tail, myColor }: Props) {
               <Path d={shape} fill="#000" />
             </Svg>
           }>
-          <BlurView tint={pal.chrome ? 'systemThinMaterialDark' : 'systemThinMaterialLight'} intensity={60} style={StyleSheet.absoluteFill} />
+          <BlurView tint={pal.hisBlur} intensity={pal.hisBlurIntensity} style={StyleSheet.absoluteFill} />
         </MaskedView>
       )}
       {box && shapeStyle && (

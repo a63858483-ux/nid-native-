@@ -1,3 +1,4 @@
+import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useEffect } from 'react';
@@ -5,7 +6,6 @@ import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } fr
 import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
-import { Glass } from './Glass';
 import { usePalette } from '@/lib/colors';
 
 export type PlusAction = 'camera' | 'photos' | 'files' | 'model' | 'checklist' | 'bubble' | 'wallpaper';
@@ -65,7 +65,9 @@ export function PlusMenu({
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
       <Animated.View style={[styles.anchor, { bottom }, panel]}>
-        <Glass style={styles.panel} tint={pal.chrome ? 'rgba(30,30,32,0.55)' : undefined}>
+        <View style={styles.panel}>
+          <BlurView tint={pal.chrome ? 'systemThickMaterialDark' : 'systemThickMaterialLight'} intensity={90} style={StyleSheet.absoluteFill} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: pal.chrome ? 'rgba(28,28,30,0.35)' : 'rgba(255,255,255,0.25)' }]} />
           <ScrollView bounces={false} showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
             {ITEMS.map((it, i) => (
               <Pressable
@@ -83,7 +85,7 @@ export function PlusMenu({
               </Pressable>
             ))}
           </ScrollView>
-        </Glass>
+        </View>
       </Animated.View>
     </View>
   );
@@ -92,7 +94,7 @@ export function PlusMenu({
 const styles = StyleSheet.create({
   veil: { backgroundColor: 'rgba(0,0,0,0.08)' },
   anchor: { position: 'absolute', left: 12, width: '72%', maxWidth: 320, transformOrigin: 'left bottom' },
-  panel: { flex: 1, borderRadius: 34, overflow: 'hidden' },
+  panel: { flex: 1, borderRadius: 34, overflow: 'hidden', borderCurve: 'continuous', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.25)' },
   list: { paddingVertical: 8, paddingHorizontal: 8 },
   item: { flexDirection: 'row', alignItems: 'center', gap: 16, height: ROW, paddingHorizontal: 12, borderRadius: 24 },
   gap: { marginTop: 4 },

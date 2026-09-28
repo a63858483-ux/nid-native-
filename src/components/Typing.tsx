@@ -21,7 +21,7 @@ export function Typing() {
   const dotColor = pal.chrome ? '#C7C7CC' : '#8E8E93';
   const frost = (style: object) => (
     <View style={[style, { overflow: 'hidden' }]}>
-      <BlurView tint={pal.chrome ? 'systemThinMaterialDark' : 'systemThinMaterialLight'} intensity={60} style={StyleSheet.absoluteFill} />
+      <BlurView tint={pal.hisBlur} intensity={pal.hisBlurIntensity} style={StyleSheet.absoluteFill} />
       <View style={[StyleSheet.absoluteFill, { backgroundColor: pal.hisFill }]} />
     </View>
   );

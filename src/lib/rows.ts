@@ -94,15 +94,6 @@ export function buildRows(items: Item[]): Row[] {
     });
   });
 
-  // iMessage: only the last bubble of a run keeps its tail.
-  for (let i = 0; i < rows.length - 1; i++) {
-    const a = rows[i];
-    const b = rows[i + 1];
-    if (a.type !== 'bubble') continue;
-    const bRole = b.type === 'typing' ? 'assistant' : b.type === 'divider' ? null : b.role;
-    if (bRole === a.role) a.tail = false;
-  }
-
   if (lastUser) {
     const last = [...rows].reverse().find((r) => r.type === 'bubble' && r.itemKey === lastUser.key);
     if (last && last.type === 'bubble') {
