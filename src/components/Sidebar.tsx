@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { router } from 'expo-router';
 import type { DrawerContentComponentProps } from 'expo-router/drawer';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -268,7 +269,14 @@ export function Sidebar({ navigation }: DrawerContentComponentProps) {
               return (
                 <Pressable
                   key={n.key}
-                  onPress={() => (on ? navigation.closeDrawer() : showToast(`${n.label} comes in a later step`))}
+                  onPress={() => {
+                    if (on) return navigation.closeDrawer();
+                    if (n.key === 'study') {
+                      navigation.closeDrawer();
+                      return router.push('/study');
+                    }
+                    showToast(`${n.label} comes in a later step`);
+                  }}
                   style={({ pressed }) => [styles.item, on && { backgroundColor: pal.ink }, pressed && !on && { backgroundColor: pal.fill }]}>
                   <SymbolView name={n.icon} size={19} tintColor={on ? pal.bg : pal.ink2} />
                   <Text style={[styles.itemLabel, { color: on ? pal.bg : pal.ink }, on && { fontWeight: '700' }]}>{n.label}</Text>
