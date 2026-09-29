@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Nid",
+    "name": "Nid douillet",
     "slug": "nid-native",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,7 +8,6 @@
     "scheme": "nid",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
       "bundleIdentifier": "top.xiaoketata.nid.native",
       "supportsTablet": false,
       "infoPlist": {
@@ -21,9 +20,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#F2F2F7",
+          "backgroundColor": "#F7F5F2",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 120
         }
       ],
       "expo-secure-store",
