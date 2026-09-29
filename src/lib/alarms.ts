@@ -1,8 +1,9 @@
 import { File, Paths } from 'expo-file-system';
+import { DeviceEventEmitter } from 'react-native';
 
 import { NidAlarm } from '../../modules/nid-alarm';
 
-export type AlarmRecord = { at: number; title: string; cancelled?: boolean };
+export type AlarmRecord = { at: number; title: string; cancelled?: boolean; took?: number[] };
 const file = () => new File(Paths.document, 'alarms.json');
 let book: Record<string, AlarmRecord> | null = null;
 function load(): Record<string, AlarmRecord> {
@@ -64,4 +65,35 @@ export async function ensureAlarm(id: string, at: number, title: string): Promis
   load()[id] = { at, title };
   save();
   return 'set';
+}
+
+export const ALARMS_CHANGED = 'nid.alarmsChanged';
+
+// His [alarm-off:…]: cancel every alarm still ahead of us that this phone set at that time (and
+// date, if he gave one), or all of them. Done once per marker; returns the times it took back.
+export async function cancelAlarms(markerId: string, time: string, date?: string): Promise<number[]> {
+  const all = load();
+  if (all[markerId]) return all[markerId].took ?? [];
+  const now = Date.now();
+  const took: number[] = [];
+  for (const [id, rec] of Object.entries(all)) {
+    if (rec.cancelled || rec.at <= now) continue;
+    const d = new Date(rec.at);
+    const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const [h, m] = time === 'all' ? [0, 0] : time.split(':').map(Number);
+    const want = time === 'all' || hm === `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    if (!want || (date && ymd !== date)) continue;
+    try {
+      await NidAlarm?.cancel(id);
+    } catch {
+      // already gone from the system; still mark it
+    }
+    rec.cancelled = true;
+    took.push(rec.at);
+  }
+  all[markerId] = { at: 0, title: '', cancelled: true, took };
+  save();
+  if (took.length) DeviceEventEmitter.emit(ALARMS_CHANGED);
+  return took;
 }

@@ -3,9 +3,9 @@ import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import Svg, { Circle, Rect } from 'react-native-svg';
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, DeviceEventEmitter, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { alarmId, alarmRecord, alarmTime, ensureAlarm } from '@/lib/alarms';
+import { ALARMS_CHANGED, alarmId, alarmRecord, alarmTime, cancelAlarms, ensureAlarm } from '@/lib/alarms';
 import { usePalette } from '@/lib/colors';
 import { findSong, playSong, useNowPlaying, type Song } from '@/lib/music';
 import { NidMusic } from '../../modules/nid-music';
@@ -113,7 +113,18 @@ function Ring({ playing, fallback }: { playing: boolean; fallback: number }) {
   return (
     <Svg width={40} height={40} viewBox="0 0 40 40">
       <Circle cx={20} cy={20} r={17.5} stroke="rgba(250,45,72,0.18)" strokeWidth={2.5} fill="none" />
-      <Circle cx={20} cy={20} r={17.5} stroke="#FA2D48" strokeWidth={2.5} fill="none" strokeLinecap="round" strokeDasharray={`${c}`} strokeDashoffset={c * (1 - frac)} transform="rotate(-90 20 20)" />
+      <Circle
+        cx={20}
+        cy={20}
+        r={17.5}
+        stroke="#FA2D48"
+        strokeWidth={2.5}
+        fill="none"
+        strokeLinecap="round"
+        strokeDasharray={`${c}`}
+        strokeDashoffset={c * (1 - frac)}
+        transform="rotate(-90 20 20)"
+      />
       {playing && (
         <>
           <Rect x={14.5} y={13.5} width={4} height={13} rx={1.2} fill="#FA2D48" />
@@ -141,6 +152,12 @@ export function AlarmCard({ msgKey, sentAt, time, date, title, mine }: { msgKey:
       live = false;
     };
   }, [id, at, title, state]);
+
+  // He can take it back later with [alarm-off:…]; the card follows.
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener(ALARMS_CHANGED, () => alarmRecord(id)?.cancelled && setState('cancelled'));
+    return () => sub.remove();
+  }, [id]);
 
   const d = new Date(at);
   const [today] = useState(() => new Date());
@@ -223,3 +240,33 @@ const styles = StyleSheet.create({
   time: { fontFamily: 'PlayfairDisplay_600SemiBold', fontSize: 32, lineHeight: 36, fontVariant: ['tabular-nums'] },
   sub: { fontSize: 13, marginTop: -1 },
 });
+
+// His [alarm-off:…]: the time he took back, struck through; nothing set at that time says so.
+export function AlarmOffCard({ msgKey, time, date, mine }: { msgKey: string; time: string; date?: string; mine: boolean }) {
+  const pal = usePalette();
+  const [took, setTook] = useState<number[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    cancelAlarms(alarmId(`${msgKey}|off|${date ?? ''}|${time}`), time, date)
+      .then((t) => live && setTook(t))
+      .catch(() => live && setTook([]));
+    return () => {
+      live = false;
+    };
+  }, [msgKey, time, date]);
+  const label = time === 'all' ? 'All alarms' : [date?.slice(5).replace('-', '/'), time].filter(Boolean).join(' ');
+  const sub = took === null ? 'Cancelling…' : took.length ? (took.length > 1 ? `Cancelled ${took.length} alarms` : 'Cancelled') : 'No alarm set then';
+  return (
+    <View style={[styles.alarm, mine ? styles.mine : styles.his, { backgroundColor: pal.hisFill }]}>
+      <View style={[styles.dial, { alignItems: 'center', justifyContent: 'center' }]}>
+        <SymbolView name="alarm.waves.left.and.right" size={20} tintColor="rgba(255,255,255,0.55)" />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.time, { color: pal.hisInk, opacity: 0.45, textDecorationLine: 'line-through' }, time === 'all' && { fontSize: 22 }]}>{label}</Text>
+        <Text numberOfLines={1} style={[styles.sub, { color: pal.meta }]}>
+          {sub}
+        </Text>
+      </View>
+    </View>
+  );
+}

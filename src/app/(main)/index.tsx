@@ -17,7 +17,7 @@ import { ConvertPanel } from '@/components/ConvertPanel';
 import { RecordOverlay } from '@/components/RecordOverlay';
 import { VoiceBubble } from '@/components/VoiceBubble';
 import { LinkCard } from '@/components/LinkCard';
-import { AlarmCard, SongCard } from '@/components/MusicCards';
+import { AlarmCard, AlarmOffCard, SongCard } from '@/components/MusicCards';
 import { Decorated, RepliesLink, ReplyQuote } from '@/components/Decor';
 import { MessageMenu, type MenuAction } from '@/components/MessageMenu';
 import { PlusMenu, type PlusAction } from '@/components/PlusMenu';
@@ -381,6 +381,8 @@ function ChatScreenInner() {
                 title={m.title}
                 mine={mine}
               />
+            ) : m.kind === 'alarmOff' ? (
+              <AlarmOffCard msgKey={item.itemKey} time={m.time} date={m.date} mine={mine} />
             ) : null}
           </Animated.View>
         );

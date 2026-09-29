@@ -7,7 +7,8 @@ export type Media =
   | { kind: 'card'; icon: 'doc' | 'artifact' | 'note' | 'letter'; title: string; sub?: string; url?: string }
   | { kind: 'voice'; text: string }
   | { kind: 'song'; query: string }
-  | { kind: 'alarm'; date?: string; time: string; title: string };
+  | { kind: 'alarm'; date?: string; time: string; title: string }
+  | { kind: 'alarmOff'; date?: string; time: string };
 
 const IMG_RE = /(?:\/media\/[^\s)\]"<>`']+\.(?:png|jpe?g|gif|webp)(?:\?[^\s)\]"<>`']*)?)|(?:\/api\/albums\/media\/[^\s)\]"<>`']+\.(?:png|jpe?g|gif|webp)(?:\?[^\s)\]"<>`']*)?)/gi;
 const DROP = [
@@ -43,6 +44,11 @@ export function parseMessage(raw: string): { text: string; media: Media[] } {
   // [alarm:07:30 早八] or [alarm:2026-10-01 07:30 早八] → a real system alarm
   t = t.replace(/\[alarm:(?:(\d{4}-\d{2}-\d{2})\s+)?(\d{1,2}:\d{2})(?:\s+([^\]]*))?\]/g, (_, date: string | undefined, time: string, title: string | undefined) => {
     media.push({ kind: 'alarm', date, time, title: (title || '').trim() });
+    return '';
+  });
+  // [alarm-off:07:30], [alarm-off:2026-10-01 07:30] or [alarm-off:all] → he takes back an alarm he set
+  t = t.replace(/\[alarm-off:(?:(\d{4}-\d{2}-\d{2})\s+)?(\d{1,2}:\d{2}|all)\s*\]/g, (_, date: string | undefined, time: string) => {
+    media.push({ kind: 'alarmOff', date, time });
     return '';
   });
   t = t.replace(/\[sticker:([^\]]+)\]/g, (_, id: string) => {
