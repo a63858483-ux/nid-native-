@@ -5,7 +5,7 @@ import { emojiOnly, parseMessage, splitBubbles, type Media } from './text';
 import { collapseSteps } from './traces';
 import type { Item } from '@/state/chat';
 
-type Thought = { label: string; live: boolean; icon?: string };
+type Thought = { label: string; live: boolean; icon?: string; ts: string };
 export type Quote = { targetKey: string; seg: number; text: string; role: 'user' | 'assistant' };
 export type TapbackView = { emoji: string; mine: boolean };
 export type Decor = { tapbacks: TapbackView[]; sticks: Stick[]; replies: number };
@@ -51,7 +51,7 @@ export type Row =
   | { type: 'inside'; key: string; itemKey: string; item: Inside; gapAbove: boolean; fresh?: boolean }
   | { type: 'typing'; key: string; itemKey: string; thought?: Thought };
 
-const HOUR = 3600_000;
+const DIVIDER_GAP = 30 * 60_000;
 // Nid runs on Beijing time whatever the phone's zone says.
 const TZ = 'Asia/Shanghai';
 const hm = (d: Date) => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TZ });
@@ -72,14 +72,15 @@ export function dayLabel(iso: string, now = Date.now()): string {
   return `${p.day} ${p.time}`;
 }
 
+// Every reply carries the clock (tap it for the exact time); the label only when he thought or acted.
 function thoughtOf(i: Item): Thought | undefined {
+  if (i.role !== 'assistant') return undefined;
   const steps = collapseSteps(i.traces);
-  if (!i.thinking && steps.length === 0) return undefined;
   if (i.status === 'streaming' && !i.text) {
     const cur = steps[steps.length - 1];
-    return cur ? { label: cur.label + '…', live: true, icon: cur.icon } : { label: 'Thinking…', live: true };
+    return cur ? { label: cur.label + '…', live: true, icon: cur.icon, ts: i.ts } : { label: 'Thinking…', live: true, ts: i.ts };
   }
-  return { label: 'Thought process', live: false };
+  return { label: i.thinking || steps.length ? 'Thought process' : '', live: false, ts: i.ts };
 }
 
 const URL_RE = /https?:\/\/[^\s<>"'`，。！？、）】)\]]+/;
@@ -185,7 +186,7 @@ export function buildRows(items: Item[], now = Date.now(), reveal: Record<string
   items.forEach((it) => {
     if (hidden.has(it.key)) return;
     const t = new Date(it.ts).getTime();
-    if (!prevTs || t - prevTs > HOUR) {
+    if (!prevTs || t - prevTs > DIVIDER_GAP) {
       rows.push({ type: 'divider', key: `d-${it.key}`, label: dayLabel(it.ts, now) });
       prevRole = null;
     }

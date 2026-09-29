@@ -2,9 +2,9 @@ import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { alarmId, alarmRecord, alarmTime, cancelAlarm, ensureAlarm } from '@/lib/alarms';
+import { alarmId, alarmRecord, alarmTime, ensureAlarm } from '@/lib/alarms';
 import { usePalette } from '@/lib/colors';
 import { findSong, playSong, useNowPlaying, type Song } from '@/lib/music';
 import { useApp } from '@/state/app';
@@ -135,7 +135,9 @@ export function AlarmCard({ msgKey, sentAt, time, date, title, mine }: { msgKey:
   const dim = state === 'past' || state === 'cancelled';
 
   return (
-    <View style={[styles.alarm, mine ? styles.mine : styles.his, { backgroundColor: pal.hisFill }]}>
+    <Pressable
+      onPress={() => Linking.openURL('clock-alarm://').catch(() => showToast('Open the Clock app to manage it'))}
+      style={({ pressed }) => [styles.alarm, mine ? styles.mine : styles.his, { backgroundColor: pal.hisFill }, pressed && { opacity: 0.8 }]}>
       <View style={styles.dial}>
         <View style={[styles.hand, { transform: [{ rotate: `${(d.getHours() % 12) * 30 + d.getMinutes() * 0.5}deg` }] }]} />
         <View style={[styles.hand, styles.minute, { transform: [{ rotate: `${d.getMinutes() * 6}deg` }] }]} />
@@ -148,21 +150,7 @@ export function AlarmCard({ msgKey, sentAt, time, date, title, mine }: { msgKey:
           {[day, title, status].filter(Boolean).join(' · ')}
         </Text>
       </View>
-      {state === 'set' ? (
-        <Pressable
-          hitSlop={8}
-          accessibilityLabel="Cancel alarm"
-          onPress={async () => {
-            Haptics.selectionAsync();
-            await cancelAlarm(id);
-            setState('cancelled');
-            showToast('Alarm cancelled');
-          }}
-          style={styles.x}>
-          <SymbolView name="xmark" size={12} weight="bold" tintColor={pal.meta} />
-        </Pressable>
-      ) : null}
-    </View>
+    </Pressable>
   );
 }
 
@@ -199,7 +187,6 @@ const styles = StyleSheet.create({
   },
   hand: { position: 'absolute', width: 2.5, height: 12, borderRadius: 1.5, backgroundColor: '#fff', top: 8, left: 18.75, transformOrigin: 'bottom' },
   minute: { height: 16, top: 4, backgroundColor: '#FF9F0A' },
-  time: { fontSize: 30, fontWeight: '300', fontVariant: ['tabular-nums'], letterSpacing: -0.5 },
+  time: { fontFamily: 'PlayfairDisplay_600SemiBold', fontSize: 32, lineHeight: 36, fontVariant: ['tabular-nums'] },
   sub: { fontSize: 13, marginTop: -1 },
-  x: { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(120,120,128,0.25)', alignItems: 'center', justifyContent: 'center' },
 });

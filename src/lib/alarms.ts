@@ -65,14 +65,3 @@ export async function ensureAlarm(id: string, at: number, title: string): Promis
   save();
   return 'set';
 }
-
-export async function cancelAlarm(id: string) {
-  try {
-    await NidAlarm?.cancel(id);
-  } catch {
-    // already gone
-  }
-  const b = load();
-  b[id] = { ...(b[id] ?? { at: 0, title: '' }), cancelled: true };
-  save();
-}

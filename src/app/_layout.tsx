@@ -1,4 +1,5 @@
-import { PlayfairDisplay_800ExtraBold_Italic, useFonts } from '@expo-google-fonts/playfair-display';
+import { JosefinSans_400Regular, JosefinSans_600SemiBold } from '@expo-google-fonts/josefin-sans';
+import { PlayfairDisplay_600SemiBold, PlayfairDisplay_800ExtraBold_Italic, useFonts } from '@expo-google-fonts/playfair-display';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
@@ -12,17 +13,11 @@ import { ChatProvider } from '@/state/chat';
 SplashScreen.preventAutoHideAsync();
 
 const sheet = (detents: number[]) =>
-  ({
-    presentation: 'formSheet',
-    sheetAllowedDetents: detents,
-    sheetGrabberVisible: true,
-    sheetCornerRadius: 30,
-    contentStyle: { backgroundColor: 'transparent' },
-  }) as const;
+  ({ presentation: 'formSheet', sheetAllowedDetents: detents, sheetGrabberVisible: true, sheetCornerRadius: 30, contentStyle: { backgroundColor: 'transparent' } }) as const;
 
 function Shell() {
   const { ready } = useApp();
-  const [fonts] = useFonts({ PlayfairDisplay_800ExtraBold_Italic });
+  const [fonts] = useFonts({ PlayfairDisplay_800ExtraBold_Italic, PlayfairDisplay_600SemiBold, JosefinSans_400Regular, JosefinSans_600SemiBold });
   useEffect(() => {
     if (ready && fonts) SplashScreen.hideAsync();
   }, [ready, fonts]);

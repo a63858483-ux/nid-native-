@@ -54,15 +54,18 @@ export function LinkCard({ url, mine, tail }: { url: string; mine: boolean; tail
         { backgroundColor: pal.hisFill, borderBottomLeftRadius: !mine && tail ? 6 : 18, borderBottomRightRadius: mine && tail ? 6 : 18 },
         pressed && { opacity: 0.8 },
       ]}>
-      {d?.image ? <Image source={d.image} style={styles.img} contentFit="cover" transition={160} /> : null}
-      <View style={styles.body}>
-        <Text numberOfLines={2} style={[styles.title, { color: pal.hisInk }]}>
-          {d ? title : ' '}
-        </Text>
-        <Text numberOfLines={1} style={[styles.site, { color: pal.meta }]}>
-          {hostOf(url)}
-        </Text>
-      </View>
+      {d?.image ? (
+        <Image source={d.image} style={styles.img} contentFit="cover" transition={160} />
+      ) : (
+        <View style={styles.body}>
+          <Text numberOfLines={2} style={[styles.title, { color: pal.hisInk }]}>
+            {d ? title : ' '}
+          </Text>
+          <Text numberOfLines={1} style={[styles.site, { color: pal.meta }]}>
+            {hostOf(url)}
+          </Text>
+        </View>
+      )}
     </Pressable>
   );
 }

@@ -317,7 +317,7 @@ function ChatScreenInner() {
       if (item.type === 'typing') {
         return (
           <View style={styles.gap}>
-            {item.thought && <ThoughtLine label={item.thought.label} live={item.thought.live} icon={item.thought.icon} onPress={() => {}} />}
+            {item.thought && <ThoughtLine label={item.thought.label} live={item.thought.live} icon={item.thought.icon} ts={item.thought.ts} onPress={() => {}} />}
             <Typing />
           </View>
         );
@@ -388,6 +388,7 @@ function ChatScreenInner() {
               label={item.thought.label}
               live={item.thought.live}
               icon={item.thought.icon}
+              ts={item.thought.ts}
               onPress={() => router.push({ pathname: '/sheet/thought', params: { key: item.itemKey } })}
             />
           )}
