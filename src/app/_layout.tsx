@@ -31,14 +31,14 @@ function Shell() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(main)" />
         <Stack.Screen name="login" options={{ animation: 'fade', gestureEnabled: false }} />
-        <Stack.Screen name="sheet/model" options={sheet([0.62, 1])} />
-        <Stack.Screen name="sheet/bubble" options={sheet([0.55, 1])} />
-        <Stack.Screen name="sheet/wallpaper" options={sheet([0.55, 1])} />
-        <Stack.Screen name="sheet/name" options={sheet([0.4, 1])} />
-        <Stack.Screen name="sheet/checklist" options={sheet([0.75, 1])} />
-        <Stack.Screen name="sheet/stickers" options={sheet([0.6, 1])} />
-        <Stack.Screen name="sheet/select" options={sheet([0.5, 1])} />
-        <Stack.Screen name="sheet/thought" options={sheet([0.5, 1])} />
+        <Stack.Screen name="sheet/model" options={sheet([0.62, 0.95])} />
+        <Stack.Screen name="sheet/bubble" options={sheet([0.55, 0.95])} />
+        <Stack.Screen name="sheet/wallpaper" options={sheet([0.55, 0.95])} />
+        <Stack.Screen name="sheet/name" options={sheet([0.4, 0.95])} />
+        <Stack.Screen name="sheet/checklist" options={sheet([0.75, 0.95])} />
+        <Stack.Screen name="sheet/stickers" options={sheet([0.6, 0.95])} />
+        <Stack.Screen name="sheet/select" options={sheet([0.5, 0.95])} />
+        <Stack.Screen name="sheet/thought" options={sheet([0.5, 0.95])} />
         <Stack.Screen name="thread/[key]" options={{ presentation: 'transparentModal', animation: 'fade', contentStyle: { backgroundColor: 'transparent' } }} />
       </Stack>
       <Toast />

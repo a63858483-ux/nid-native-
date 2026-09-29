@@ -49,7 +49,13 @@ export type Row =
   | { type: 'link'; key: string; itemKey: string; role: 'user' | 'assistant'; url: string; gapAbove: boolean; fresh?: boolean; tail: boolean }
   | { type: 'inline'; key: string; itemKey: string; role: 'user' | 'assistant'; media: Media; gapAbove: boolean; fresh?: boolean }
   | { type: 'inside'; key: string; itemKey: string; item: Inside; gapAbove: boolean; fresh?: boolean }
-  | { type: 'typing'; key: string; itemKey: string; thought?: Thought };
+  | { type: 'typing'; key: string; itemKey: string; thought?: Thought }
+  | { type: 'pill'; key: string; labels: string[] }
+  | { type: 'call'; key: string; label: string };
+
+// Four or more of his quiet turns in a row fold into one pill.
+const FOLD_MIN = 4;
+const callLabel = (a: string) => a.replace('通话开始', 'Call started').replace('通话结束', 'Call ended');
 
 const DIVIDER_GAP = 20 * 60_000;
 // Nid runs on Beijing time whatever the phone's zone says.
@@ -183,14 +189,36 @@ export function buildRows(items: Item[], now = Date.now(), reveal: Record<string
   const lastUser = [...items].reverse().find((i) => i.role === 'user');
   const replyAfter = lastUser ? items[items.indexOf(lastUser) + 1] : undefined;
 
-  items.forEach((it) => {
-    if (hidden.has(it.key)) return;
+  const isPill = (i: Item | undefined) => !!i && i.origin !== 'call_marker' && !!i.activity;
+  let skipTo = -1;
+  items.forEach((it, index) => {
+    if (hidden.has(it.key) || index < skipTo) return;
     const t = new Date(it.ts).getTime();
     if (!prevTs || t - prevTs > DIVIDER_GAP) {
       rows.push({ type: 'divider', key: `d-${it.key}`, label: dayLabel(it.ts, now) });
       prevRole = null;
     }
     prevTs = t;
+
+    if (it.origin === 'call_marker') {
+      rows.push({ type: 'call', key: `c-${it.key}`, label: callLabel(it.activity || '') });
+      prevRole = null;
+      return;
+    }
+    if (isPill(it)) {
+      let end = index;
+      while (isPill(items[end + 1])) end++;
+      const run = items.slice(index, end + 1);
+      if (run.length >= FOLD_MIN) {
+        rows.push({ type: 'pill', key: `p-${it.key}`, labels: run.map((r) => r.activity as string) });
+        skipTo = end + 1;
+        prevTs = new Date(run[run.length - 1].ts).getTime();
+      } else {
+        rows.push({ type: 'pill', key: `p-${it.key}`, labels: [it.activity as string] });
+      }
+      prevRole = null;
+      return;
+    }
 
     if (it.role === 'assistant' && it.origin === 'wake') {
       for (const ins of it.inside ?? []) {
@@ -284,7 +312,7 @@ export function buildRows(items: Item[], now = Date.now(), reveal: Record<string
     const a = rows[i];
     const b = rows[i + 1];
     if (a.type !== 'bubble' && a.type !== 'voice' && a.type !== 'link') continue;
-    const bRole = b.type === 'typing' ? 'assistant' : b.type === 'divider' ? null : b.type === 'inside' ? 'assistant' : b.role;
+    const bRole = b.type === 'typing' ? 'assistant' : b.type === 'divider' || b.type === 'pill' || b.type === 'call' ? null : b.type === 'inside' ? 'assistant' : b.role;
     if (bRole === a.role) a.tail = false;
   }
 

@@ -22,6 +22,7 @@ import { Decorated, RepliesLink, ReplyQuote } from '@/components/Decor';
 import { MessageMenu, type MenuAction } from '@/components/MessageMenu';
 import { PlusMenu, type PlusAction } from '@/components/PlusMenu';
 import { FOCUS_EVENT } from '@/components/Sidebar';
+import { ActivityPill, CallDivider } from '@/components/ActivityPill';
 import { ThoughtLine } from '@/components/ThoughtLine';
 import { Typing } from '@/components/Typing';
 import * as api from '@/lib/api';
@@ -307,6 +308,8 @@ function ChatScreenInner() {
           </Text>
         );
       }
+      if (item.type === 'pill') return <ActivityPill labels={item.labels} />;
+      if (item.type === 'call') return <CallDivider label={item.label} />;
       if (item.type === 'inside') {
         return (
           <Animated.View entering={item.fresh ? replyEnter : undefined} style={item.gapAbove ? styles.gap : styles.tight}>

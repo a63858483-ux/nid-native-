@@ -12,7 +12,7 @@ export type Message = {
   attachments: { path?: string; name?: string; mime?: string }[];
   timestamp: string;
   origin: string | null;
-  activity: unknown;
+  activity: string | null;
   seg?: number;
   traces?: Trace[];
   inside?: Inside[];

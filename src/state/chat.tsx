@@ -20,6 +20,7 @@ export type Item = {
   traces?: api.Trace[];
   inside?: api.Inside[];
   origin?: string | null;
+  activity?: string; // what he did on his own without a word, shown as a small centred pill
   fresh?: boolean; // created in this session, animate its entrance
   error?: string;
 };
@@ -35,6 +36,15 @@ type Action =
   | { t: 'conv'; convId: string }
   | { t: 'busy'; busy: boolean };
 
+// Writing essays never shows as a pill (what he wrote is on the Paper shelf); old rows still say so.
+const QUIET = new Set(['写了篇日记', '写了封信', '写了点东西', '写了篇随笔']);
+export const cleanActivity = (a: string | null | undefined) =>
+  (a || '')
+    .split('、')
+    .map((x) => x.trim())
+    .filter((x) => x && !QUIET.has(x))
+    .join('、');
+
 const fromMessage = (m: api.Message): Item => ({
   key: `m${m.id}`,
   id: m.id,
@@ -46,14 +56,15 @@ const fromMessage = (m: api.Message): Item => ({
   traces: m.traces ?? [],
   inside: m.inside ?? [],
   origin: m.origin,
+  activity: m.origin === 'call_marker' ? m.activity || '' : cleanActivity(m.activity) || undefined,
 });
 
-const visible = (m: api.Message) =>
-  (m.role === 'user' || m.role === 'assistant') &&
-  !m.activity &&
-  m.origin !== 'toy' &&
-  m.origin !== 'call_marker' &&
-  (!!m.text || (m.inside?.length ?? 0) > 0 || (m.attachments?.length ?? 0) > 0);
+const visible = (m: api.Message) => {
+  if (m.role !== 'user' && m.role !== 'assistant') return false;
+  if (m.origin === 'call_marker') return !!m.activity;
+  if (m.activity) return !!cleanActivity(m.activity);
+  return m.origin !== 'toy' && (!!m.text || (m.inside?.length ?? 0) > 0 || (m.attachments?.length ?? 0) > 0);
+};
 
 function reducer(s: State, a: Action): State {
   switch (a.t) {
