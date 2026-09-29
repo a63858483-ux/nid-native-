@@ -46,6 +46,7 @@ export type Row =
       tail: boolean;
       receipt?: string;
     }
+  | { type: 'link'; key: string; itemKey: string; role: 'user' | 'assistant'; url: string; gapAbove: boolean; fresh?: boolean; tail: boolean }
   | { type: 'inline'; key: string; itemKey: string; role: 'user' | 'assistant'; media: Media; gapAbove: boolean; fresh?: boolean }
   | { type: 'inside'; key: string; itemKey: string; item: Inside; gapAbove: boolean; fresh?: boolean }
   | { type: 'typing'; key: string; itemKey: string; thought?: Thought };
@@ -80,6 +81,9 @@ function thoughtOf(i: Item): Thought | undefined {
   }
   return { label: 'Thought process', live: false };
 }
+
+const URL_RE = /https?:\/\/[^\s<>"'`，。！？、）】)\]]+/;
+const firstUrl = (t: string) => URL_RE.exec(t)?.[0]?.replace(/[.,;:!?]+$/, '') ?? null;
 
 export type Segment = { kind: 'text'; text: string } | { kind: 'media'; media: Media };
 
@@ -256,6 +260,14 @@ export function buildRows(items: Item[], now = Date.now(), reveal: Record<string
           tapbacks: decor.get(`${it.key}:${idx}`)?.tapbacks,
           sticks: decor.get(`${it.key}:${idx}`)?.sticks,
         });
+        // A link gets a preview card under its bubble; a bubble that is only the link gives way to the card.
+        const url = firstUrl(seg.text);
+        if (url && !streaming) {
+          const d = decor.get(`${it.key}:${idx}`);
+          const bare = plainOf(seg.text).trim() === url && !d?.tapbacks?.length && !d?.sticks?.length && !d?.replies && !(idx === 0 && quotes.get(it.key));
+          if (bare) rows.pop();
+          rows.push({ type: 'link', key: `${it.key}-l-${idx}`, itemKey: it.key, role: it.role, url, gapAbove: bare ? gapAbove : false, fresh: it.fresh, tail: true });
+        }
       }
       prevRole = it.role;
     });
@@ -270,7 +282,7 @@ export function buildRows(items: Item[], now = Date.now(), reveal: Record<string
   for (let i = 0; i < rows.length - 1; i++) {
     const a = rows[i];
     const b = rows[i + 1];
-    if (a.type !== 'bubble' && a.type !== 'voice') continue;
+    if (a.type !== 'bubble' && a.type !== 'voice' && a.type !== 'link') continue;
     const bRole = b.type === 'typing' ? 'assistant' : b.type === 'divider' ? null : b.type === 'inside' ? 'assistant' : b.role;
     if (bRole === a.role) a.tail = false;
   }

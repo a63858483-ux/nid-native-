@@ -16,6 +16,7 @@ import { Composer, type Pending } from '@/components/Composer';
 import { ConvertPanel } from '@/components/ConvertPanel';
 import { RecordOverlay } from '@/components/RecordOverlay';
 import { VoiceBubble } from '@/components/VoiceBubble';
+import { LinkCard } from '@/components/LinkCard';
 import { Decorated, RepliesLink, ReplyQuote } from '@/components/Decor';
 import { MessageMenu, type MenuAction } from '@/components/MessageMenu';
 import { PlusMenu, type PlusAction } from '@/components/PlusMenu';
@@ -321,6 +322,13 @@ function ChatScreenInner() {
         );
       }
       const mine = item.role === 'user';
+      if (item.type === 'link') {
+        return (
+          <Animated.View entering={item.fresh ? (mine ? sendEnter : replyEnter) : undefined} style={item.gapAbove ? styles.gap : styles.tight}>
+            <LinkCard url={item.url} mine={mine} tail={item.tail} />
+          </Animated.View>
+        );
+      }
       if (item.type === 'voice') {
         return (
           <Animated.View entering={item.fresh ? (mine ? sendEnter : replyEnter) : undefined} style={item.gapAbove ? styles.gap : styles.tight}>
