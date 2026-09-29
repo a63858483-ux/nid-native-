@@ -29,7 +29,7 @@ export const setToken = (t: string | null) => {
   token = t;
 };
 
-async function call(path: string, init: RequestInit = {}) {
+export async function call(path: string, init: RequestInit = {}) {
   const headers: Record<string, string> = { ...(init.headers as Record<string, string>) };
   if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(API_BASE + path, { ...init, headers });

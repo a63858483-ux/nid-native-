@@ -1,6 +1,7 @@
 import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { AuthError, login, setToken } from '@/lib/api';
+import { registerPush, unregisterPush } from '@/lib/push';
 import { DEMO } from '@/lib/config';
 import { clearToken, DEFAULT_PREFS, loadPrefs, loadToken, savePrefs, saveToken, type Prefs } from '@/lib/storage';
 
@@ -42,7 +43,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSignedIn(true);
   }, []);
 
+  // Every signed-in launch reports the device's push token (it can change between installs).
+  useEffect(() => {
+    if (signedIn) registerPush();
+  }, [signedIn]);
+
   const signOut = useCallback(async () => {
+    await unregisterPush();
     setToken(null);
     await clearToken().catch(() => {});
     setSignedIn(false);
@@ -62,10 +69,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     toastTimer.current = setTimeout(() => setToast(null), 1800);
   }, []);
 
-  const value = useMemo(
-    () => ({ ready, signedIn, signIn, signOut, prefs, setPrefs, toast, showToast }),
-    [ready, signedIn, signIn, signOut, prefs, setPrefs, toast, showToast],
-  );
+  const value = useMemo(() => ({ ready, signedIn, signIn, signOut, prefs, setPrefs, toast, showToast }), [ready, signedIn, signIn, signOut, prefs, setPrefs, toast, showToast]);
   return <Ctx value={value}>{children}</Ctx>;
 }
 
