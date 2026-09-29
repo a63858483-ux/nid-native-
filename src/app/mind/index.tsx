@@ -12,8 +12,6 @@ import { dayLabel } from '@/lib/rows';
 const INK = '#1b1a19';
 const MUTED = '#8a857c';
 const GROUND = '#f6f5f2';
-// Web used Kaiti (楷体) with a serif fallback; iOS ships Songti, not Kaiti.
-const KAI = 'Songti SC';
 
 const MOOD_COLORS: Record<string, string> = {
   warm: '#C9776A',
@@ -439,10 +437,10 @@ const styles = StyleSheet.create({
   hcatCount: { fontSize: 10, fontWeight: '700', color: MUTED },
   hitem: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, paddingVertical: 4 },
   hdot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: INK, opacity: 0.3, marginTop: 11 },
-  hitemText: { flex: 1, fontFamily: KAI, fontSize: 15.5, lineHeight: 26.4, letterSpacing: 0.3, color: '#4a463f' },
+  hitemText: { flex: 1, fontSize: 15.5, lineHeight: 26.4, letterSpacing: 0.3, color: '#4a463f' },
   entryWhen: { fontSize: 11, fontWeight: '700', color: MUTED },
-  entryText: { fontFamily: KAI, fontSize: 17, lineHeight: 30.6, letterSpacing: 0.34, color: INK },
-  entrySub: { fontFamily: KAI, fontSize: 14, lineHeight: 22, color: MUTED, marginTop: 6 },
+  entryText: { fontSize: 17, lineHeight: 30.6, letterSpacing: 0.34, color: INK },
+  entrySub: { fontSize: 14, lineHeight: 22, color: MUTED, marginTop: 6 },
   entryMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 10 },
   entryTime: { marginLeft: 'auto', fontSize: 12, color: MUTED, fontVariant: ['tabular-nums'] },
   badge: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 7, backgroundColor: INK },
@@ -459,8 +457,8 @@ const styles = StyleSheet.create({
   pairBtnText: { flex: 1, fontSize: 13, color: INK, fontWeight: '500' },
   pairChevron: { fontSize: 12, color: MUTED },
   pairCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginTop: 6, gap: 6 },
-  pairM: { fontFamily: KAI, fontSize: 16, lineHeight: 26, color: INK },
-  pairF: { fontFamily: KAI, fontSize: 14, lineHeight: 22, color: '#B05080' },
+  pairM: { fontSize: 16, lineHeight: 26, color: INK },
+  pairF: { fontSize: 14, lineHeight: 22, color: '#B05080' },
   pairActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
   pairOk: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: '#1b1a19' },
   pairOkText: { fontSize: 12.5, fontWeight: '700', color: '#fff' },

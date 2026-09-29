@@ -7,6 +7,8 @@ import Svg, { Path } from 'react-native-svg';
 
 const APath = Animated.createAnimatedComponent(Path);
 const H = 64;
+// Tabs sit inside this inset so a dip never runs into the bar's rounded ends.
+const PAD = 30;
 const FILL = 'rgba(24,24,26,0.92)';
 export type TabItem = { icon: SFSymbol; label: string };
 const STUDY: TabItem[] = [
@@ -24,13 +26,13 @@ function barPath(W: number, count: number, n0: number, n1: number, n2: number, m
   const R = 33;
   const S = 20;
   const D = 36;
-  const cw = W / count;
+  const cw = (W - PAD * 2) / count;
   let p = `M ${r} 0`;
   const ns = [n0, n1, n2];
   for (let i = 0; i < count; i++) {
     const k = ns[i] * (1 - m);
     if (k < 0.01) continue;
-    const cx = cw * (i + 0.5);
+    const cx = PAD + cw * (i + 0.5);
     const d = D * k;
     const rr = R * (0.6 + 0.4 * k);
     p += ` L ${cx - rr - S} 0 C ${cx - rr - S * 0.35} 0 ${cx - rr} ${d * 0.2} ${cx - rr * 0.78} ${d * 0.62} C ${cx - rr * 0.5} ${d * 1.02} ${cx + rr * 0.5} ${d * 1.02} ${cx + rr * 0.78} ${d * 0.62} C ${cx + rr} ${d * 0.2} ${cx + rr + S * 0.35} 0 ${cx + rr + S} 0`;
@@ -46,12 +48,9 @@ function Item({ i, cur, W, count, item, m, onPress }: { i: number; cur: number; 
     lift.set(withSpring(on ? 1 : 0, { damping: 13, stiffness: 170 }));
   }, [on, lift]);
   const st = useAnimatedStyle(() => {
-    const full = (W / count) * (i + 0.5);
+    const full = PAD + ((W - PAD * 2) / count) * (i + 0.5);
     const cx = full + (H / 2 - full) * m.value;
-    return {
-      transform: [{ translateX: cx - 26 }, { translateY: -30 * lift.value * (1 - m.value) }],
-      opacity: on ? 1 : 1 - m.value,
-    };
+    return { transform: [{ translateX: cx - 26 }, { translateY: -30 * lift.value * (1 - m.value) }], opacity: on ? 1 : 1 - m.value };
   });
   const bub = useAnimatedStyle(() => ({ opacity: lift.value * (1 - m.value) }));
   return (

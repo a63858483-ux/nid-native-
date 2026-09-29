@@ -89,21 +89,29 @@ function hookContents(contents){
     if(noteish){const t=await noteText(href.startsWith('#')?href:full,doc);if(t){post('note',{text:t,label:(a.textContent||'').trim()});return}}
     try{rend.display(href.startsWith('#')?(book.spine.get(contents.sectionIndex).href+href):full)}catch(err){}
   },true);
+  listenTouches(doc);
   placeQuotes(contents);
 }
 
-function onTouchStart(e){const p=e.changedTouches[0];tx=p.screenX;ty=p.screenY;tt=Date.now()}
+// Touches are read straight off each chapter's document (and the page around it) rather than
+// through epub.js's forwarded events, which WKWebView didn't deliver. x is mapped to the top window
+// through the iframe's rect, since a paginated chapter iframe is many screens wide.
+function topX(e,p){const f=e.view&&e.view.frameElement;return p.clientX+(f?f.getBoundingClientRect().left:0)}
+function onTouchStart(e){const p=e.changedTouches[0];tx=topX(e,p);ty=p.clientY;tt=Date.now()}
 function onTouchEnd(e){
-  const p=e.changedTouches[0];const dx=p.screenX-tx,dy=p.screenY-ty,dt=Date.now()-tt;
+  if(!rend)return;
+  const p=e.changedTouches[0];const x=topX(e,p);const dx=x-tx,dy=p.clientY-ty,dt=Date.now()-tt;
   const sel=e.view&&e.view.getSelection&&e.view.getSelection();
   if(sel&&!sel.isCollapsed)return;
   if(Math.abs(dx)>40&&Math.abs(dx)>Math.abs(dy)*1.2){dx<0?rend.next():rend.prev();return}
   if(Math.abs(dx)<10&&Math.abs(dy)<10&&dt<350){
     if(e.target&&e.target.closest&&e.target.closest('a[href]'))return;
-    const w=window.innerWidth,x=p.screenX;
+    const w=window.innerWidth;
     if(x<w*0.22)rend.prev();else if(x>w*0.78)rend.next();else post('tap');
   }
 }
+function listenTouches(doc){doc.addEventListener('touchstart',onTouchStart,{passive:true});doc.addEventListener('touchend',onTouchEnd,{passive:true})}
+listenTouches(document);
 
 window.nidOpen=async(url,token,cfi,t,list)=>{
   try{
@@ -115,7 +123,6 @@ window.nidOpen=async(url,token,cfi,t,list)=>{
     // Gentle defaults; the book's own stylesheet still wins wherever it says otherwise.
     rend.themes.default({body:{'line-height':'1.8'},p:{'text-align':'justify'}});
     rend.hooks.content.register(hookContents);
-    rend.on('touchstart',onTouchStart);rend.on('touchend',onTouchEnd);
     rend.on('selected',(cfi,contents)=>{
       let text='';try{text=rend.getRange(cfi).toString()}catch(e){}
       post('select',{cfi,text:text.trim()});

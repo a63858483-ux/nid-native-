@@ -16,8 +16,6 @@ const MUTED = '#8a857c';
 const GROUND = '#f6f5f2';
 const HOT = '#c0392b';
 const INK2 = '#4a463f';
-// Web used Kaiti (楷体) with a serif fallback; iOS ships Songti, not Kaiti.
-const KAI = 'Songti SC';
 
 function relDays(iso: string) {
   return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400_000));
@@ -324,7 +322,7 @@ const styles = StyleSheet.create({
   stateMain: { flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingHorizontal: 16, paddingTop: 8 },
   big: { fontSize: 36, fontWeight: '700', letterSpacing: -1, color: INK, flexShrink: 1 },
   bigV: { fontSize: 24, fontWeight: '800', color: INK2, fontVariant: ['tabular-nums'] },
-  sense: { fontFamily: KAI, fontSize: 15, lineHeight: 26, letterSpacing: 0.15, color: INK2, marginHorizontal: 16, marginTop: 10 },
+  sense: { fontSize: 15, lineHeight: 26, letterSpacing: 0.15, color: INK2, marginHorizontal: 16, marginTop: 10 },
   spark: { flexDirection: 'row', alignItems: 'flex-end', gap: 2, height: 46, marginHorizontal: 16, marginTop: 14, marginBottom: 4 },
   sparkBar: { flex: 1, borderRadius: 2, backgroundColor: '#e4e1d8' },
   sparkNow: { backgroundColor: HOT },
@@ -337,11 +335,11 @@ const styles = StyleSheet.create({
   dimN: { fontSize: 11, color: MUTED },
   dimV: { width: 40, textAlign: 'right', fontSize: 14, fontWeight: '700', fontVariant: ['tabular-nums'], color: INK },
   thought: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 16, paddingLeft: 30, backgroundColor: '#faf9f6' },
-  thoughtB: { flex: 1, fontFamily: KAI, fontSize: 14, lineHeight: 22.4, color: INK2 },
+  thoughtB: { flex: 1, fontSize: 14, lineHeight: 22.4, color: INK2 },
   thoughtK: { fontSize: 12, fontWeight: '700', color: MUTED, fontVariant: ['tabular-nums'] },
   // dianji
   dj: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 16 },
-  djText: { flex: 1, fontFamily: KAI, fontSize: 16, lineHeight: 26.4, letterSpacing: 0.3, color: INK },
+  djText: { flex: 1, fontSize: 16, lineHeight: 26.4, letterSpacing: 0.3, color: INK },
   djR: { alignItems: 'flex-end' },
   djLabel: { fontSize: 22, fontWeight: '800', color: INK, fontVariant: ['tabular-nums'] },
   djSub: { fontSize: 9.5, color: MUTED, marginTop: 2 },
