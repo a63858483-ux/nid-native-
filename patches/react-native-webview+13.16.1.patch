@@ -1,0 +1,32 @@
+diff --git a/node_modules/react-native-webview/apple/RNCWebViewImpl.m b/node_modules/react-native-webview/apple/RNCWebViewImpl.m
+index 7f5c24d..fb1eadb 100644
+--- a/node_modules/react-native-webview/apple/RNCWebViewImpl.m
++++ b/node_modules/react-native-webview/apple/RNCWebViewImpl.m
+@@ -94,12 +94,24 @@ NSString *const CUSTOM_SELECTOR = @"_CUSTOM_SELECTOR_";
+   return NO;
+ }
+ - (void)buildMenuWithBuilder:(id<UIMenuBuilder>)builder API_AVAILABLE(ios(13.0))  {
++    [super buildMenuWithBuilder:builder];
++    // iOS 16+ edit menus ignore UIMenuController items: put the custom commands in the menu itself
++    // and make them the whole menu (Nid reader: Highlight / Add Note / Copy).
+     if (@available(iOS 16.0, *)) {
+-      if(self.menuItems){
+-        [builder removeMenuForIdentifier:UIMenuLookup];
++      if(self.menuItems && self.menuItems.count > 0){
++        NSMutableArray<UIMenuElement *> *cmds = [NSMutableArray new];
++        for(NSDictionary *menuItem in self.menuItems) {
++          NSString *label = [RCTConvert NSString:menuItem[@"label"]];
++          NSString *key = [RCTConvert NSString:menuItem[@"key"]];
++          NSString *sel = [NSString stringWithFormat:@"%@%@", CUSTOM_SELECTOR, key];
++          [cmds addObject:[UICommand commandWithTitle:label image:nil action:NSSelectorFromString(sel) propertyList:nil]];
++        }
++        UIMenu *ours = [UIMenu menuWithTitle:@"" image:nil identifier:@"nid.custom" options:UIMenuOptionsDisplayInline children:cmds];
++        [builder replaceChildrenOfMenuForIdentifier:UIMenuRoot fromChildrenBlock:^NSArray<UIMenuElement *> *(NSArray<UIMenuElement *> *children) {
++          return @[ours];
++        }];
+       }
+     }
+-    [super buildMenuWithBuilder:builder];
+ }
+ #else // TARGET_OS_OSX
+ - (void)scrollWheel:(NSEvent *)theEvent {
