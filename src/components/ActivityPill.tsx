@@ -6,20 +6,18 @@ import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 
 import { usePalette } from '@/lib/colors';
 
-// What he did on his own without saying anything: a small centred grey pill. Four or more in a row
-// fold into one pill that opens to the list.
-export function ActivityPill({ labels }: { labels: string[] }) {
+// What he did on his own without saying anything: one quiet centred line with its time, set like the
+// Today dividers. Four or more in a row fold into one line that opens to the list.
+export function ActivityPill({ labels, times }: { labels: string[]; times: string[] }) {
   const pal = usePalette();
   const [open, setOpen] = useState(false);
-  const bg = pal.wall ? 'rgba(40,40,44,0.45)' : pal.fill;
-  const fg = pal.wall ? 'rgba(255,255,255,0.9)' : pal.ink2;
+  const fg = pal.wall ? 'rgba(255,255,255,0.85)' : pal.meta;
+  const shade = pal.wall ? styles.shadow : null;
   if (labels.length === 1) {
     return (
-      <View style={styles.row}>
-        <View style={[styles.pill, { backgroundColor: bg }]}>
-          <Text style={[styles.text, { color: fg }]}>{labels[0]}</Text>
-        </View>
-      </View>
+      <Text style={[styles.line, { color: fg }, shade]}>
+        {labels[0]} <Text style={styles.time}>{times[0]}</Text>
+      </Text>
     );
   }
   return (
@@ -29,16 +27,22 @@ export function ActivityPill({ labels }: { labels: string[] }) {
           Haptics.selectionAsync();
           setOpen((o) => !o);
         }}
-        style={({ pressed }) => [styles.card, { backgroundColor: bg }, pressed && { opacity: 0.7 }]}>
+        hitSlop={8}
+        style={({ pressed }) => pressed && { opacity: 0.6 }}>
         <View style={styles.head}>
-          <Text style={[styles.text, { color: fg }]}>你不在的时候，他自己做了这些 · {labels.length} 件</Text>
-          <SymbolView name={open ? 'chevron.up' : 'chevron.down'} size={10} weight="semibold" tintColor={fg} />
+          <Text style={[styles.text, { color: fg }, shade]}>
+            你不在的时候，他自己做了这些 · {labels.length} 件{' '}
+            <Text style={styles.time}>
+              {times[0]}–{times[times.length - 1]}
+            </Text>
+          </Text>
+          <SymbolView name={open ? 'chevron.up' : 'chevron.down'} size={9} weight="semibold" tintColor={fg} />
         </View>
         {open && (
           <Animated.View entering={FadeIn.duration(180)} style={styles.list}>
             {labels.map((l, i) => (
-              <Text key={i} style={[styles.item, { color: fg }]}>
-                · {l}
+              <Text key={i} style={[styles.item, { color: fg }, shade]}>
+                {l} <Text style={styles.time}>{times[i]}</Text>
               </Text>
             ))}
           </Animated.View>
@@ -62,13 +66,14 @@ export function CallDivider({ label }: { label: string }) {
 }
 
 const styles = StyleSheet.create({
-  row: { alignItems: 'center', marginVertical: 8, paddingHorizontal: 40 },
-  pill: { borderRadius: 12, paddingHorizontal: 11, paddingVertical: 4 },
-  card: { borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6, maxWidth: '100%' },
+  row: { alignItems: 'center', paddingTop: 10, paddingBottom: 6, paddingHorizontal: 40 },
+  line: { alignSelf: 'center', textAlign: 'center', fontSize: 11.5, fontWeight: '500', paddingTop: 10, paddingBottom: 6, paddingHorizontal: 40 },
+  time: { fontWeight: '400', fontVariant: ['tabular-nums'] },
+  shadow: { textShadowColor: 'rgba(0,0,0,0.45)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
   head: { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center' },
   list: { paddingTop: 6, paddingBottom: 2, gap: 3 },
-  item: { fontSize: 12.5, lineHeight: 18 },
-  text: { fontSize: 12.5 },
+  item: { fontSize: 11.5, lineHeight: 17, textAlign: 'center' },
+  text: { fontSize: 11.5, fontWeight: '500', textAlign: 'center' },
   call: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 12, paddingHorizontal: 30 },
   hair: { flex: 1, height: StyleSheet.hairlineWidth, opacity: 0.6 },
   callText: { fontSize: 12, fontWeight: '500' },

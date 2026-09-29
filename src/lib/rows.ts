@@ -50,7 +50,7 @@ export type Row =
   | { type: 'inline'; key: string; itemKey: string; role: 'user' | 'assistant'; media: Media; gapAbove: boolean; fresh?: boolean }
   | { type: 'inside'; key: string; itemKey: string; item: Inside; gapAbove: boolean; fresh?: boolean }
   | { type: 'typing'; key: string; itemKey: string; thought?: Thought }
-  | { type: 'pill'; key: string; labels: string[] }
+  | { type: 'pill'; key: string; labels: string[]; times: string[] }
   | { type: 'call'; key: string; label: string };
 
 // Four or more of his quiet turns in a row fold into one pill.
@@ -210,11 +210,11 @@ export function buildRows(items: Item[], now = Date.now(), reveal: Record<string
       while (isPill(items[end + 1])) end++;
       const run = items.slice(index, end + 1);
       if (run.length >= FOLD_MIN) {
-        rows.push({ type: 'pill', key: `p-${it.key}`, labels: run.map((r) => r.activity as string) });
+        rows.push({ type: 'pill', key: `p-${it.key}`, labels: run.map((r) => r.activity as string), times: run.map((r) => dayLabel(r.ts, now).slice(-5)) });
         skipTo = end + 1;
         prevTs = new Date(run[run.length - 1].ts).getTime();
       } else {
-        rows.push({ type: 'pill', key: `p-${it.key}`, labels: [it.activity as string] });
+        rows.push({ type: 'pill', key: `p-${it.key}`, labels: [it.activity as string], times: [dayLabel(it.ts, now).slice(-5)] });
       }
       prevRole = null;
       return;

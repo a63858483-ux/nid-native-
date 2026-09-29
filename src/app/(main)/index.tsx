@@ -320,7 +320,7 @@ function ChatScreenInner() {
           </Text>
         );
       }
-      if (item.type === 'pill') return <ActivityPill labels={item.labels} />;
+      if (item.type === 'pill') return <ActivityPill labels={item.labels} times={item.times} />;
       if (item.type === 'call') return <CallDivider label={item.label} />;
       if (item.type === 'inside') {
         return (
