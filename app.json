@@ -12,7 +12,12 @@
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "EXDevMenuShowFloatingActionButton": false
+        "EXDevMenuShowFloatingActionButton": false,
+        "NSAppleMusicUsageDescription": "Nid plays the songs Antoine picks for you and shows your Apple Music library.",
+        "NSAlarmKitUsageDescription": "Nid sets the alarms Antoine promises to wake you with."
+      },
+      "runtimeVersion": {
+        "policy": "appVersion"
       }
     },
     "plugins": [
@@ -70,6 +75,20 @@
         "projectId": "dc01345f-dd65-4965-8ed2-2760935ccf0a"
       }
     },
-    "owner": "ada8899"
+    "owner": "ada8899",
+    "updates": {
+      "url": "https://u.expo.dev/dc01345f-dd65-4965-8ed2-2760935ccf0a"
+    },
+    "android": {
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
+    },
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    }
   }
 }
