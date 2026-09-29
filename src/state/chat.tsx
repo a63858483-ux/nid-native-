@@ -42,14 +42,18 @@ const fromMessage = (m: api.Message): Item => ({
   text: m.text || '',
   thinking: m.thinking || '',
   ts: m.timestamp,
-  attachments: (m.attachments as api.Attachment[] | undefined)?.filter((a) => a && a.path) ?? [],
+  attachments: (m.attachments as api.Attachment[] | undefined)?.filter((a) => a && (a.path || (a.type === 'voice' && a.url))) ?? [],
   traces: m.traces ?? [],
   inside: m.inside ?? [],
   origin: m.origin,
 });
 
 const visible = (m: api.Message) =>
-  (m.role === 'user' || m.role === 'assistant') && !m.activity && m.origin !== 'toy' && m.origin !== 'call_marker' && (!!m.text || (m.inside?.length ?? 0) > 0 || (m.attachments?.length ?? 0) > 0);
+  (m.role === 'user' || m.role === 'assistant') &&
+  !m.activity &&
+  m.origin !== 'toy' &&
+  m.origin !== 'call_marker' &&
+  (!!m.text || (m.inside?.length ?? 0) > 0 || (m.attachments?.length ?? 0) > 0);
 
 function reducer(s: State, a: Action): State {
   switch (a.t) {
@@ -63,12 +67,7 @@ function reducer(s: State, a: Action): State {
       return add.length ? { ...s, items: [...s.items, ...add] } : s;
     }
     case 'patch':
-      return {
-        ...s,
-        items: s.items.map((i) =>
-          i.key === a.key ? { ...i, ...(typeof a.patch === 'function' ? a.patch(i) : a.patch) } : i,
-        ),
-      };
+      return { ...s, items: s.items.map((i) => (i.key === a.key ? { ...i, ...(typeof a.patch === 'function' ? a.patch(i) : a.patch) } : i)) };
     case 'remove':
       return { ...s, items: s.items.filter((i) => i.key !== a.key) };
     case 'conv':
@@ -79,7 +78,7 @@ function reducer(s: State, a: Action): State {
 }
 
 type ChatCtx = State & {
-  send: (text: string, attachments?: api.Attachment[]) => void;
+  send: (text: string, attachments?: api.Attachment[], opts?: { voiceUrl?: string }) => void;
   stop: () => void;
   loadOlder: () => void;
   refresh: () => void;
@@ -164,7 +163,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [signedIn, pollOnce]);
 
   const send = useCallback(
-    async (raw: string, attachments: api.Attachment[] = []) => {
+    async (raw: string, attachments: api.Attachment[] = [], opts: { voiceUrl?: string } = {}) => {
       const text = raw.trim();
       if (!text && !attachments.length) return;
       if (sref.current.busy) abort.current?.abort();
@@ -217,7 +216,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           dispatch({ t: 'patch', key: aKey, patch: { status: undefined } });
         } else {
           const ok = await api.streamChat(
-            { message: text, conversation_id: sref.current.convId, model: prefs.model, effort: prefs.effort.toLowerCase(), attachments: attachments.map((a) => a.path) },
+            {
+              message: text,
+              conversation_id: sref.current.convId,
+              model: prefs.model,
+              effort: prefs.effort.toLowerCase(),
+              attachments: attachments.filter((a) => a.path).map((a) => a.path),
+              ...(opts.voiceUrl ? { voice_url: opts.voiceUrl } : {}),
+            },
             {
               ...handlers,
               onConversation: (d) => {
@@ -269,10 +275,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const byKey = useCallback((key: string) => sref.current.items.find((i) => i.key === key), []);
 
-  const value = useMemo(
-    () => ({ ...s, send, stop, loadOlder, refresh: load, byKey }),
-    [s, send, stop, loadOlder, load, byKey],
-  );
+  const value = useMemo(() => ({ ...s, send, stop, loadOlder, refresh: load, byKey }), [s, send, stop, loadOlder, load, byKey]);
   return <Ctx value={value}>{children}</Ctx>;
 }
 

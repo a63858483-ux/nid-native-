@@ -39,11 +39,7 @@ async function call(path: string, init: RequestInit = {}) {
 }
 
 export async function login(password: string): Promise<string> {
-  const res = await fetch(`${API_BASE}/api/auth`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password }),
-  });
+  const res = await fetch(`${API_BASE}/api/auth`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) });
   if (res.status === 401) throw new AuthError('Wrong password');
   if (!res.ok) throw new Error(`Login failed (${res.status})`);
   return (await res.json()).token;
@@ -58,10 +54,7 @@ export async function mainConversationId(): Promise<string | null> {
 export async function history(convId: string, beforeId?: number, limit = 40) {
   const q = new URLSearchParams({ limit: String(limit), exclude_origin: 'toy' });
   if (beforeId) q.set('before_id', String(beforeId));
-  return (await call(`/api/sessions/${encodeURIComponent(convId)}/messages?${q}`)) as {
-    messages: Message[];
-    has_more: boolean;
-  };
+  return (await call(`/api/sessions/${encodeURIComponent(convId)}/messages?${q}`)) as { messages: Message[]; has_more: boolean };
 }
 
 export async function poll(convId: string, after: number) {
@@ -80,6 +73,7 @@ export type ChatBody = {
   extended?: boolean;
   seg?: number;
   attachments?: string[];
+  voice_url?: string;
 };
 
 export type StreamHandlers = {
@@ -139,19 +133,14 @@ export async function search(q: string) {
 }
 
 /* ── checklist ── */
-export type ChecklistItem = {
-  id: number;
-  body: string;
-  is_fixed: number;
-  done: number;
-  done_at: number | null;
-  created_by: string;
-  trigger_at: number | null;
-  created_at: number;
-};
+export type ChecklistItem = { id: number; body: string; is_fixed: number; done: number; done_at: number | null; created_by: string; trigger_at: number | null; created_at: number };
 export const checklistList = async () => ((await call('/api/checklist')) as { items: ChecklistItem[] }).items;
 export const checklistAdd = (body: string, opts: { is_fixed?: boolean; at?: string } = {}) =>
-  call('/api/checklist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body, created_by: 'user', ...opts }) }) as Promise<ChecklistItem>;
+  call('/api/checklist', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ body, created_by: 'user', ...opts }),
+  }) as Promise<ChecklistItem>;
 export const checklistToggle = (id: number, done: boolean) =>
   call(`/api/checklist/${id}/toggle`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ done }) });
 export const checklistDelete = (id: number) => call(`/api/checklist/${id}`, { method: 'DELETE' });
@@ -162,8 +151,7 @@ export const channelGet = () => call('/api/channel') as Promise<ChannelState>;
 export const channelSet = (channel: 'max' | 'api', model?: string) =>
   call('/api/channel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ channel, model }) }) as Promise<ChannelState>;
 export const backgroundGet = async () => !!((await call('/api/background')) as { enabled: boolean }).enabled;
-export const backgroundSet = (enabled: boolean) =>
-  call('/api/background', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled }) });
+export const backgroundSet = (enabled: boolean) => call('/api/background', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled }) });
 export type QuotaLimit = { kind: string; label: string; percent: number | null; resets_at: string | null };
 export const quotaGet = () => call('/api/quota') as Promise<{ limits: QuotaLimit[]; error?: string }>;
 
@@ -172,7 +160,7 @@ export const stickersList = async () =>
   ((await call('/api/stickers')) as { stickers: import('./stickers').Sticker[] }).stickers.filter((s) => (s as { status?: string }).status !== 'deleted');
 
 /* ── uploads ── */
-export type Attachment = { name: string; path: string; mime?: string; size?: number; is_image?: boolean };
+export type Attachment = { name: string; path: string; mime?: string; size?: number; is_image?: boolean; type?: 'voice'; url?: string; dur?: number };
 export async function upload(convId: string | null, files: { uri: string; name: string; mime: string }[]) {
   const attachments: Attachment[] = [];
   let conversation_id = convId ?? '';
@@ -193,6 +181,41 @@ export async function upload(convId: string | null, files: { uri: string; name: 
   }
   return { conversation_id, attachments };
 }
+/* ── voice ── */
+// Her recording: saved for playback and transcribed on the server (the text becomes the message).
+export async function voiceUpload(uri: string, mime: string, text = '') {
+  const res = await FileSystem.uploadAsync(`${API_BASE}/api/voice/upload${text ? `?text=${encodeURIComponent(text)}` : ''}`, uri, {
+    httpMethod: 'POST',
+    uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': mime },
+  });
+  if (res.status === 401) throw new AuthError('unauthorized');
+  if (res.status < 200 || res.status >= 300) throw new Error(`voice ${res.status}: ${res.body.slice(0, 120)}`);
+  return JSON.parse(res.body) as { url: string; text: string };
+}
+// Words only, for the convert-to-text panel.
+export async function voiceStt(uri: string, mime: string) {
+  const res = await FileSystem.uploadAsync(`${API_BASE}/api/voice/stt`, uri, {
+    httpMethod: 'POST',
+    uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': mime },
+  });
+  if (res.status === 401) throw new AuthError('unauthorized');
+  if (res.status < 200 || res.status >= 300) throw new Error(`stt ${res.status}: ${res.body.slice(0, 120)}`);
+  return (JSON.parse(res.body) as { text: string }).text;
+}
+// His voice: synthesized on demand, wav bytes.
+export async function ttsBytes(text: string): Promise<Uint8Array> {
+  const res = await fetch(`${API_BASE}/api/voice/tts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ text }),
+  });
+  if (res.status === 401) throw new AuthError('unauthorized');
+  if (!res.ok) throw new Error(`tts ${res.status}`);
+  return new Uint8Array(await res.arrayBuffer());
+}
+
 // Uploaded files are served per conversation; the server stores the absolute path.
 export function attachmentUrl(convId: string, a: Attachment) {
   const file = a.path.split('/').pop() ?? '';

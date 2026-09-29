@@ -2,6 +2,7 @@ import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextStyle } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { FadeInDown, FadeOutDown, LinearTransition, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 
 import * as Haptics from 'expo-haptics';
@@ -33,6 +34,8 @@ function pieceStyle(kinds: Kind[]): TextStyle | undefined {
   };
 }
 
+export type HoldEvent = { phase: 'start' | 'move' | 'end'; x: number; y: number };
+
 export type Pending = { local: string; att?: Attachment; name: string; isImage: boolean; uploading: boolean };
 
 export function Composer({
@@ -44,6 +47,9 @@ export function Composer({
   onSend,
   placeholder = 'Message',
   autoFocus,
+  talk,
+  onTalk,
+  onHold,
 }: {
   myColor: string;
   plusOpen: boolean;
@@ -53,6 +59,10 @@ export function Composer({
   onSend: (text: string) => void;
   placeholder?: string;
   autoFocus?: boolean;
+  // Hold to Talk: the mic swaps the field for a bar; holding it records (handled by the screen).
+  talk?: boolean;
+  onTalk?: (on: boolean) => void;
+  onHold?: (e: HoldEvent) => void;
 }) {
   const pal = usePalette();
   // Plain text plus styled ranges: formatting shows in the field, markup only on send.
@@ -165,92 +175,127 @@ export function Composer({
         </Animated.View>
       )}
       <View style={styles.row}>
-        <Pressable onPress={onPlus} accessibilityLabel="More">
+        <Pressable onPress={talk ? () => onTalk?.(false) : onPlus} accessibilityLabel={talk ? 'Keyboard' : 'More'}>
           <Glass interactive tint={tint} style={styles.circle}>
-            <Animated.View style={plusSt}>
-              <SymbolView name="plus" size={20} weight="medium" tintColor={ink} />
-            </Animated.View>
+            {talk ? (
+              <SymbolView name="keyboard" size={20} weight="medium" tintColor={ink} />
+            ) : (
+              <Animated.View style={plusSt}>
+                <SymbolView name="plus" size={20} weight="medium" tintColor={ink} />
+              </Animated.View>
+            )}
           </Glass>
         </Pressable>
-        <Glass tint={tint} style={styles.pill}>
-          {pending.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="always">
-              {pending.map((p) => (
-                <View key={p.local} style={[styles.chip, { backgroundColor: pal.card }, p.uploading && { opacity: 0.55 }]}>
-                  {p.isImage ? (
-                    <Image source={p.local} style={styles.chipImg} contentFit="cover" />
-                  ) : (
-                    <View style={styles.chipDoc}>
-                      <SymbolView name="doc.fill" size={16} tintColor={pal.ink2} />
-                      <Text numberOfLines={1} style={[styles.chipName, { color: pal.ink }]}>
-                        {p.name}
-                      </Text>
-                    </View>
-                  )}
-                  <Pressable onPress={() => onRemovePending(p.local)} hitSlop={8} style={styles.chipX} accessibilityLabel="Remove">
-                    <SymbolView name="xmark" size={9} weight="bold" tintColor="#fff" />
-                  </Pressable>
-                </View>
-              ))}
-            </ScrollView>
-          )}
-          <View style={styles.inrow}>
-            <View style={{ flex: 1 }}>
-              <Text aria-hidden style={[styles.input, styles.measure]} onLayout={(e) => setContentH(e.nativeEvent.layout.height)}>
-                {piecesOf(text, spans).map((pc, i) => (
-                  <Text key={i} style={pieceStyle(pc.kinds)}>
-                    {pc.text}
-                  </Text>
+        {talk ? (
+          <HoldBar onHold={onHold} />
+        ) : (
+          <Glass tint={tint} style={styles.pill}>
+            {pending.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="always">
+                {pending.map((p) => (
+                  <View key={p.local} style={[styles.chip, { backgroundColor: pal.card }, p.uploading && { opacity: 0.55 }]}>
+                    {p.isImage ? (
+                      <Image source={p.local} style={styles.chipImg} contentFit="cover" />
+                    ) : (
+                      <View style={styles.chipDoc}>
+                        <SymbolView name="doc.fill" size={16} tintColor={pal.ink2} />
+                        <Text numberOfLines={1} style={[styles.chipName, { color: pal.ink }]}>
+                          {p.name}
+                        </Text>
+                      </View>
+                    )}
+                    <Pressable onPress={() => onRemovePending(p.local)} hitSlop={8} style={styles.chipX} accessibilityLabel="Remove">
+                      <SymbolView name="xmark" size={9} weight="bold" tintColor="#fff" />
+                    </Pressable>
+                  </View>
                 ))}
-                {/* keeps a trailing empty line counted */}
-                {'\u200b'}
-              </Text>
-              <TextInput
-                ref={input}
-                autoFocus={autoFocus}
-                onChangeText={onChange}
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
-                onSelectionChange={(e) => {
-                  sel.current = e.nativeEvent.selection;
-                  setHasSel(e.nativeEvent.selection.end > e.nativeEvent.selection.start);
-                }}
-                placeholder={placeholder}
-                placeholderTextColor={ink2}
-                multiline
-                // Sized from the hidden copy below: grows with the text, back to one line once sent.
-                style={[styles.input, { color: ink, height: text ? Math.min(MAX_H, Math.max(MIN_H, contentH)) : MIN_H }]}>
-                {piecesOf(text, spans).map((pc, i) => (
-                  <Text key={i} style={pieceStyle(pc.kinds)}>
-                    {pc.text}
-                  </Text>
-                ))}
-              </TextInput>
-              {moving && (
-                <View pointerEvents="none" style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
-                  <RichText text={serialize(text, spans)} style={[styles.input, { color: ink }]} fxOnly loop />
-                </View>
-              )}
-              <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.morph, { backgroundColor: sendColor }, morphSt]}>
-                <Text numberOfLines={5} style={[styles.input, { color: sendInk }]}>
-                  {text}
+              </ScrollView>
+            )}
+            <View style={styles.inrow}>
+              <View style={{ flex: 1 }}>
+                <Text aria-hidden style={[styles.input, styles.measure]} onLayout={(e) => setContentH(e.nativeEvent.layout.height)}>
+                  {piecesOf(text, spans).map((pc, i) => (
+                    <Text key={i} style={pieceStyle(pc.kinds)}>
+                      {pc.text}
+                    </Text>
+                  ))}
+                  {/* keeps a trailing empty line counted */}
+                  {'\u200b'}
                 </Text>
-              </Animated.View>
+                <TextInput
+                  ref={input}
+                  autoFocus={autoFocus}
+                  onChangeText={onChange}
+                  onFocus={() => setFocused(true)}
+                  onBlur={() => setFocused(false)}
+                  onSelectionChange={(e) => {
+                    sel.current = e.nativeEvent.selection;
+                    setHasSel(e.nativeEvent.selection.end > e.nativeEvent.selection.start);
+                  }}
+                  placeholder={placeholder}
+                  placeholderTextColor={ink2}
+                  multiline
+                  // Sized from the hidden copy below: grows with the text, back to one line once sent.
+                  style={[styles.input, { color: ink, height: text ? Math.min(MAX_H, Math.max(MIN_H, contentH)) : MIN_H }]}>
+                  {piecesOf(text, spans).map((pc, i) => (
+                    <Text key={i} style={pieceStyle(pc.kinds)}>
+                      {pc.text}
+                    </Text>
+                  ))}
+                </TextInput>
+                {moving && (
+                  <View pointerEvents="none" style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
+                    <RichText text={serialize(text, spans)} style={[styles.input, { color: ink }]} fxOnly loop />
+                  </View>
+                )}
+                <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.morph, { backgroundColor: sendColor }, morphSt]}>
+                  <Text numberOfLines={5} style={[styles.input, { color: sendInk }]}>
+                    {text}
+                  </Text>
+                </Animated.View>
+              </View>
+              <View style={styles.action}>
+                <Animated.View style={[StyleSheet.absoluteFill, styles.center, micSt]} pointerEvents={ready ? 'none' : 'auto'}>
+                  <Pressable onPress={() => onTalk?.(true)} hitSlop={8} accessibilityLabel="Voice message" style={styles.center}>
+                    <SymbolView name="mic" size={19} tintColor={ink2} />
+                  </Pressable>
+                </Animated.View>
+                <Animated.View style={[StyleSheet.absoluteFill, sendSt]} pointerEvents={ready ? 'auto' : 'none'}>
+                  <Pressable onPress={submit} accessibilityLabel="Send" style={[styles.send, { backgroundColor: sendColor }]}>
+                    <SymbolView name="arrow.up" size={16} weight="bold" tintColor={sendInk} />
+                  </Pressable>
+                </Animated.View>
+              </View>
             </View>
-            <View style={styles.action}>
-              <Animated.View style={[StyleSheet.absoluteFill, styles.center, micSt]} pointerEvents={ready ? 'none' : 'auto'}>
-                <SymbolView name="mic" size={19} tintColor={ink2} />
-              </Animated.View>
-              <Animated.View style={[StyleSheet.absoluteFill, sendSt]} pointerEvents={ready ? 'auto' : 'none'}>
-                <Pressable onPress={submit} accessibilityLabel="Send" style={[styles.send, { backgroundColor: sendColor }]}>
-                  <SymbolView name="arrow.up" size={16} weight="bold" tintColor={sendInk} />
-                </Pressable>
-              </Animated.View>
-            </View>
-          </View>
-        </Glass>
+          </Glass>
+        )}
       </View>
     </View>
+  );
+}
+
+// The white Hold to Talk bar. A pan with no minimum distance fires on touch-down, tracks
+// the finger in screen coordinates and ends on release, so the screen can pick the zone.
+function HoldBar({ onHold }: { onHold?: (e: HoldEvent) => void }) {
+  const [down, setDown] = useState(false);
+  const gesture = Gesture.Pan()
+    .minDistance(0)
+    .runOnJS(true)
+    .onBegin((e) => {
+      setDown(true);
+      onHold?.({ phase: 'start', x: e.absoluteX, y: e.absoluteY });
+    })
+    .onUpdate((e) => onHold?.({ phase: 'move', x: e.absoluteX, y: e.absoluteY }))
+    .onFinalize((e) => {
+      setDown(false);
+      onHold?.({ phase: 'end', x: e.absoluteX, y: e.absoluteY });
+    });
+  return (
+    <GestureDetector gesture={gesture}>
+      <View style={[styles.talk, down && styles.talkDown]}>
+        <Text style={styles.talkText}>Hold to Talk</Text>
+      </View>
+    </GestureDetector>
   );
 }
 
@@ -268,6 +313,9 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: 12, paddingTop: 8 },
   circle: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   pill: { flex: 1, minHeight: 44, borderRadius: 22, paddingLeft: 14, paddingRight: 5, paddingVertical: 5 },
+  talk: { flex: 1, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.94)', alignItems: 'center', justifyContent: 'center' },
+  talkDown: { backgroundColor: 'rgba(205,205,208,0.96)' },
+  talkText: { fontSize: 16, fontWeight: '600', color: '#111' },
   chips: { gap: 6, paddingTop: 4, paddingBottom: 8, paddingRight: 6 },
   chip: { height: 72, borderRadius: 14, overflow: 'hidden' },
   chipImg: { height: 72, width: 72 },

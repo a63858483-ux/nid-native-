@@ -32,6 +32,20 @@ export type Row =
       sticks?: Stick[];
     }
   | { type: 'media'; key: string; itemKey: string; role: 'user' | 'assistant'; att: Attachment; gapAbove: boolean; fresh?: boolean }
+  | {
+      type: 'voice';
+      key: string;
+      itemKey: string;
+      role: 'user' | 'assistant';
+      url?: string;
+      ttsText?: string;
+      transcript: string;
+      dur?: number;
+      gapAbove: boolean;
+      fresh?: boolean;
+      tail: boolean;
+      receipt?: string;
+    }
   | { type: 'inline'; key: string; itemKey: string; role: 'user' | 'assistant'; media: Media; gapAbove: boolean; fresh?: boolean }
   | { type: 'inside'; key: string; itemKey: string; item: Inside; gapAbove: boolean; fresh?: boolean }
   | { type: 'typing'; key: string; itemKey: string; thought?: Thought };
@@ -179,12 +193,29 @@ export function buildRows(items: Item[], now = Date.now(), reveal: Record<string
         prevRole = it.role;
       }
     }
+    // Her recording: the message text is its transcript, so no text bubble for it.
+    const voiceAtt = (it.attachments ?? []).find((a) => a.type === 'voice' && a.url);
     for (const att of it.attachments ?? []) {
-      rows.push({ type: 'media', key: `${it.key}-a-${att.path}`, itemKey: it.key, role: it.role, att, gapAbove: prevRole !== it.role, fresh: it.fresh });
+      if (att === voiceAtt) {
+        rows.push({
+          type: 'voice',
+          key: `${it.key}-v`,
+          itemKey: it.key,
+          role: it.role,
+          url: att.url,
+          transcript: plainOf(parseMessage(it.text).text),
+          dur: att.dur,
+          gapAbove: prevRole !== it.role,
+          fresh: it.fresh,
+          tail: true,
+        });
+      } else if (att.path) {
+        rows.push({ type: 'media', key: `${it.key}-a-${att.path}`, itemKey: it.key, role: it.role, att, gapAbove: prevRole !== it.role, fresh: it.fresh });
+      }
       prevRole = it.role;
     }
 
-    const segs = segmentsOf(it);
+    const segs = voiceAtt ? [] : segmentsOf(it);
     const streaming = it.role === 'assistant' && it.status === 'streaming';
     const paced = it.role === 'assistant' && it.fresh;
     const shown = paced ? Math.min(segs.length, reveal[it.key] ?? 0) : segs.length;
@@ -192,7 +223,19 @@ export function buildRows(items: Item[], now = Date.now(), reveal: Record<string
 
     segs.slice(0, shown).forEach((seg, idx) => {
       const gapAbove = prevRole !== it.role;
-      if (seg.kind === 'media') {
+      if (seg.kind === 'media' && seg.media.kind === 'voice') {
+        rows.push({
+          type: 'voice',
+          key: `${it.key}-m-${idx}`,
+          itemKey: it.key,
+          role: it.role,
+          ttsText: seg.media.text,
+          transcript: seg.media.text,
+          gapAbove,
+          fresh: it.fresh,
+          tail: true,
+        });
+      } else if (seg.kind === 'media') {
         rows.push({ type: 'inline', key: `${it.key}-m-${idx}`, itemKey: it.key, role: it.role, media: seg.media, gapAbove, fresh: it.fresh });
       } else {
         rows.push({
@@ -227,14 +270,14 @@ export function buildRows(items: Item[], now = Date.now(), reveal: Record<string
   for (let i = 0; i < rows.length - 1; i++) {
     const a = rows[i];
     const b = rows[i + 1];
-    if (a.type !== 'bubble') continue;
+    if (a.type !== 'bubble' && a.type !== 'voice') continue;
     const bRole = b.type === 'typing' ? 'assistant' : b.type === 'divider' ? null : b.type === 'inside' ? 'assistant' : b.role;
     if (bRole === a.role) a.tail = false;
   }
 
   if (lastUser) {
-    const last = [...rows].reverse().find((r) => r.type === 'bubble' && r.itemKey === lastUser.key);
-    if (last && last.type === 'bubble') {
+    const last = [...rows].reverse().find((r) => (r.type === 'bubble' || r.type === 'voice') && r.itemKey === lastUser.key);
+    if (last && (last.type === 'bubble' || last.type === 'voice')) {
       last.receipt = lastUser.status === 'sending' ? 'Delivered' : replyAfter ? `Read ${hm(new Date(replyAfter.ts))}` : 'Delivered';
     }
   }

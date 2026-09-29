@@ -13,6 +13,9 @@ import { Bubble, CardBubble, FileBubble, InlineImageBubble, InsideBubble, PhotoB
 import { PhotoViewer } from '@/components/PhotoViewer';
 import { ChatHeader, EdgeBlur, HEADER_H } from '@/components/ChatHeader';
 import { Composer, type Pending } from '@/components/Composer';
+import { ConvertPanel } from '@/components/ConvertPanel';
+import { RecordOverlay } from '@/components/RecordOverlay';
+import { VoiceBubble } from '@/components/VoiceBubble';
 import { Decorated, RepliesLink, ReplyQuote } from '@/components/Decor';
 import { MessageMenu, type MenuAction } from '@/components/MessageMenu';
 import { PlusMenu, type PlusAction } from '@/components/PlusMenu';
@@ -23,6 +26,7 @@ import * as api from '@/lib/api';
 import { usePalette, WallpaperContext } from '@/lib/colors';
 import { DEMO } from '@/lib/config';
 import { tapbackMarker } from '@/lib/markers';
+import { useVoiceRecorder, VOICE_MIME, type Recording } from '@/lib/recorder';
 import { plainOf } from '@/lib/rich';
 import { buildRows, segmentsOf, type Row } from '@/lib/rows';
 import { wallpaperUri } from '@/lib/storage';
@@ -80,6 +84,39 @@ function ChatScreenInner() {
   const bubbleRefs = useRef<Record<string, View | null>>({});
   // Photo open full screen; its bubble hides meanwhile so the picture looks lifted out of it.
   const [photo, setPhoto] = useState<PhotoOpen | null>(null);
+  // Voice: Hold to Talk mode, the live hold, and the convert-to-text panel after a release on that pill.
+  const [talk, setTalk] = useState(false);
+  const [convert, setConvert] = useState<{ rec: Recording; text: string | null } | null>(null);
+  const sendVoice = useCallback(
+    async (rec: Recording) => {
+      try {
+        const { url, text } = await api.voiceUpload(rec.uri, VOICE_MIME);
+        send(text, [{ type: 'voice', url, dur: rec.seconds, name: 'voice.m4a', path: '' }], { voiceUrl: url });
+      } catch (e) {
+        showToast(e instanceof Error && /502|转录/.test(e.message) ? "Couldn't make out the words. Try again." : "Couldn't send that voice message.");
+      }
+    },
+    [send, showToast],
+  );
+  const { hold, onHold } = useVoiceRecorder(
+    useCallback(
+      (rec: Recording, how: 'send' | 'text') => {
+        if (how === 'send') return void sendVoice(rec);
+        setConvert({ rec, text: null });
+        api
+          .voiceStt(rec.uri, VOICE_MIME)
+          .then((t) => setConvert((c) => (c && c.rec.uri === rec.uri ? { ...c, text: t } : c)))
+          .catch(() => {
+            setConvert(null);
+            showToast("Couldn't make out the words. Sent as voice instead.");
+            sendVoice(rec);
+          });
+      },
+      [sendVoice, showToast],
+    ),
+    useCallback(() => showToast('Too short. Hold a little longer.'), [showToast]),
+    useCallback(() => showToast('Microphone access is off in Settings'), [showToast]),
+  );
 
   // Time labels (Today / Yesterday / weekday) move on their own as the clock does.
   useEffect(() => {
@@ -284,6 +321,21 @@ function ChatScreenInner() {
         );
       }
       const mine = item.role === 'user';
+      if (item.type === 'voice') {
+        return (
+          <Animated.View entering={item.fresh ? (mine ? sendEnter : replyEnter) : undefined} style={item.gapAbove ? styles.gap : styles.tight}>
+            <VoiceBubble
+              mine={mine}
+              myColor={prefs.bubble}
+              source={item.url ? { kind: 'url', url: item.url } : { kind: 'tts', text: item.ttsText ?? '' }}
+              transcript={item.transcript}
+              dur={item.dur}
+              tail={item.tail}
+            />
+            {item.receipt ? <Text style={[styles.receipt, { color: pal.meta }, pal.wall && styles.shadow]}>{item.receipt}</Text> : null}
+          </Animated.View>
+        );
+      }
       if (item.type === 'inline') {
         const m = item.media;
         return (
@@ -292,9 +344,9 @@ function ChatScreenInner() {
               <StickerBubble id={m.id} mine={mine} />
             ) : m.kind === 'image' ? (
               <InlineImageBubble url={m.url} mine={mine} hidden={photo?.uri.endsWith(m.url)} onOpen={setPhoto} />
-            ) : (
+            ) : m.kind === 'card' ? (
               <CardBubble media={m} mine={mine} myColor={prefs.bubble} />
-            )}
+            ) : null}
           </Animated.View>
         );
       }
@@ -376,9 +428,31 @@ function ChatScreenInner() {
               setPlusOpen((o) => !o);
             }}
             onSend={onSend}
+            talk={talk}
+            onTalk={setTalk}
+            onHold={onHold}
           />
         </View>
       </KeyboardStickyView>
+
+      {hold && <RecordOverlay zone={hold.zone} seconds={hold.seconds} level={hold.level} myColor={prefs.bubble} />}
+      {convert && (
+        <ConvertPanel
+          text={convert.text}
+          myColor={prefs.bubble}
+          onCancel={() => setConvert(null)}
+          onSendVoice={() => {
+            const rec = convert.rec;
+            setConvert(null);
+            sendVoice(rec);
+          }}
+          onSendText={(t) => {
+            setConvert(null);
+            setTalk(false);
+            send(t);
+          }}
+        />
+      )}
 
       {menu && (
         <MessageMenu

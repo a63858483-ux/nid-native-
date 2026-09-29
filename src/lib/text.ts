@@ -4,14 +4,34 @@
 export type Media =
   | { kind: 'sticker'; id: string }
   | { kind: 'image'; url: string }
-  | { kind: 'card'; icon: 'doc' | 'artifact' | 'note' | 'letter'; title: string; sub?: string; url?: string };
+  | { kind: 'card'; icon: 'doc' | 'artifact' | 'note' | 'letter'; title: string; sub?: string; url?: string }
+  | { kind: 'voice'; text: string };
 
 const IMG_RE = /(?:\/media\/[^\s)\]"<>`']+\.(?:png|jpe?g|gif|webp)(?:\?[^\s)\]"<>`']*)?)|(?:\/api\/albums\/media\/[^\s)\]"<>`']+\.(?:png|jpe?g|gif|webp)(?:\?[^\s)\]"<>`']*)?)/gi;
-const DROP = [/\[\/?voice\]/g, /\[toy:(?:suck|vibe|ems):\d+\]/g, /\[quiz:\{[\s\S]*?\}\]/g, /\[ask:\{[\s\S]*?\}\]/g, /\[pay:\{[\s\S]*?\}\]/g, /<#\d{1,2}(?:\.\d{1,2})?#>/g, /<销·[^>]*\/>/g, /<等\s*\/>/g, /<succhia_\w+>[\s\S]*?<\/succhia_\w+>/g];
+const DROP = [
+  /\[\/?voice\]/g,
+  /\[toy:(?:suck|vibe|ems):\d+\]/g,
+  /\[quiz:\{[\s\S]*?\}\]/g,
+  /\[ask:\{[\s\S]*?\}\]/g,
+  /\[pay:\{[\s\S]*?\}\]/g,
+  /<#\d{1,2}(?:\.\d{1,2})?#>/g,
+  /<销·[^>]*\/>/g,
+  /<等\s*\/>/g,
+  /<succhia_\w+>[\s\S]*?<\/succhia_\w+>/g,
+];
 
 export function parseMessage(raw: string): { text: string; media: Media[] } {
   let t = raw || '';
   const media: Media[] = [];
+  // [voice]…[/voice] is a spoken reply: the words become a voice bubble. An unclosed
+  // [voice] is one still streaming in; nothing of it shows until it closes.
+  t = t.replace(/\[voice\]([\s\S]*?)\[\/voice\]/g, (_, inner: string) => {
+    const v = stripTone(inner).trim();
+    if (v) media.push({ kind: 'voice', text: v });
+    return '';
+  });
+  const open = t.indexOf('[voice]');
+  if (open >= 0) t = t.slice(0, open);
   for (const re of DROP) t = t.replace(re, '');
   t = t.replace(/\[sticker:([^\]]+)\]/g, (_, id: string) => {
     media.push({ kind: 'sticker', id: id.trim() });
@@ -38,9 +58,17 @@ export function parseMessage(raw: string): { text: string; media: Media[] } {
     return '';
   });
   // **bold** / _italic_ etc. stay in: RichText renders them.
-  t = t.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  t = t
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
   return { text: t, media };
 }
+
+// Tone marks only steer the voice: <语气·calm/>, (sighs), <#0.4#> never show as words.
+const TONE_RE =
+  /<语气·[a-zA-Z]{3,12}\s*\/?>|\((?:laughs|chuckle|sighs|breath|pant|inhale|exhale|gasps|groans|sniffs|coughs|clear-throat|humming|emm|lip-smacking|snorts|hissing|sneezes|burps)\)|<#\d{1,2}(?:\.\d{1,2})?#>/g;
+export const stripTone = (t: string) => t.replace(TONE_RE, '').replace(/[ \t]{2,}/g, ' ');
 
 export const cleanAssistantText = (raw: string) => parseMessage(raw).text;
 
