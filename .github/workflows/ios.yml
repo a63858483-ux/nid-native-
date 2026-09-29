@@ -47,18 +47,19 @@ jobs:
 
       - name: Build (no signing)
         run: |
-          set -o pipefail
+          WS=$(ls -d ios/*.xcworkspace | head -1); SCHEME=$(basename "$WS" .xcworkspace)
           xcodebuild \
-            -workspace ios/Nid.xcworkspace -scheme Nid \
+            -workspace "$WS" -scheme "$SCHEME" \
             -configuration "$CONFIG" -sdk iphoneos -destination 'generic/platform=iOS' \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-            build | tail -80
+            build > build.log 2>&1 || { grep -E "error:" build.log | sort -u | head -60; tail -30 build.log; exit 1; }
+          tail -15 build.log
 
       - name: Package .ipa
         run: |
           mkdir -p Payload
-          cp -R "build/Build/Products/${CONFIG}-iphoneos/Nid.app" Payload/
+          cp -R build/Build/Products/${CONFIG}-iphoneos/*.app Payload/
           zip -qry "Nid-${{ inputs.kind }}.ipa" Payload
 
       - uses: actions/upload-artifact@v4
@@ -99,20 +100,21 @@ jobs:
         env:
           EXPO_PUBLIC_DEMO: "1"
         run: |
-          set -o pipefail
+          WS=$(ls -d ios/*.xcworkspace | head -1); SCHEME=$(basename "$WS" .xcworkspace)
           xcodebuild \
-            -workspace ios/Nid.xcworkspace -scheme Nid \
+            -workspace "$WS" -scheme "$SCHEME" \
             -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
-            build | tail -80
+            build > build.log 2>&1 || { grep -E "error:" build.log | sort -u | head -60; tail -30 build.log; exit 1; }
+          tail -15 build.log
 
       - name: Run and screenshot
         run: |
           DEVICE=$(xcrun simctl list devices available -j | python3 -c "import json,sys;d=json.load(sys.stdin)['devices'];c=[x for k,v in d.items() if 'iOS-26' in k for x in v if x['name'].startswith('iPhone 17 Pro') or x['name'].startswith('iPhone 16 Pro')];print(c[0]['udid'])")
           xcrun simctl boot "$DEVICE"
           xcrun simctl bootstatus "$DEVICE" -b
-          xcrun simctl install "$DEVICE" build/Build/Products/Release-iphonesimulator/Nid.app
+          xcrun simctl install "$DEVICE" build/Build/Products/Release-iphonesimulator/*.app
           mkdir -p shots
           for scene in chat sidebar model plus; do
             xcrun simctl terminate "$DEVICE" top.xiaoketata.nid.native || true
