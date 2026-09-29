@@ -1,16 +1,29 @@
 {
-  "cli": { "version": ">= 16.0.0", "appVersionSource": "remote" },
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "ios": { "simulator": false }
+      "ios": {
+        "simulator": false
+      }
     },
     "production": {
       "autoIncrement": true
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascApiKeyPath": "/home/ubuntu/.config/nid-native/AuthKey_K59FFBL729.p8",
+        "ascApiKeyIssuerId": "85c865ae-d0c0-4bae-88ca-689d0c67ac18",
+        "ascApiKeyId": "K59FFBL729",
+        "ascAppId": "6817204565",
+        "appleTeamId": "FVU3KQ7HL3"
+      }
+    }
   }
 }
