@@ -9,7 +9,8 @@ import { KeyboardChatScrollView, KeyboardStickyView } from 'react-native-keyboar
 import Animated, { interpolate, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Bubble, CardBubble, FileBubble, InlineImageBubble, InsideBubble, PhotoBubble, StickerBubble } from '@/components/Bubble';
+import { Bubble, CardBubble, FileBubble, InlineImageBubble, InsideBubble, PhotoBubble, StickerBubble, type PhotoOpen } from '@/components/Bubble';
+import { PhotoViewer } from '@/components/PhotoViewer';
 import { ChatHeader, EdgeBlur, HEADER_H } from '@/components/ChatHeader';
 import { Composer, type Pending } from '@/components/Composer';
 import { Decorated, RepliesLink, ReplyQuote } from '@/components/Decor';
@@ -77,6 +78,8 @@ function ChatScreenInner() {
   // Long-pressed bubble: where it sits on screen and which row it is.
   const [menu, setMenu] = useState<{ row: Extract<Row, { type: 'bubble' }>; rect: { x: number; y: number; w: number; h: number } } | null>(null);
   const bubbleRefs = useRef<Record<string, View | null>>({});
+  // Photo open full screen; its bubble hides meanwhile so the picture looks lifted out of it.
+  const [photo, setPhoto] = useState<PhotoOpen | null>(null);
 
   // Time labels (Today / Yesterday / weekday) move on their own as the clock does.
   useEffect(() => {
@@ -288,7 +291,7 @@ function ChatScreenInner() {
             {m.kind === 'sticker' ? (
               <StickerBubble id={m.id} mine={mine} />
             ) : m.kind === 'image' ? (
-              <InlineImageBubble url={m.url} mine={mine} />
+              <InlineImageBubble url={m.url} mine={mine} hidden={photo?.uri.endsWith(m.url)} onOpen={setPhoto} />
             ) : (
               <CardBubble media={m} mine={mine} myColor={prefs.bubble} />
             )}
@@ -299,9 +302,9 @@ function ChatScreenInner() {
         return (
           <Animated.View entering={item.fresh ? (mine ? sendEnter : replyEnter) : undefined} style={item.gapAbove ? styles.gap : styles.tight}>
             {item.att.is_image || /\.(jpe?g|png|gif|webp|heic)$/i.test(item.att.name) ? (
-              <PhotoBubble convId={convId ?? ''} att={item.att} mine={mine} />
+              <PhotoBubble convId={convId ?? ''} att={item.att} mine={mine} hidden={!!photo && photo.name === item.att.name} onOpen={setPhoto} />
             ) : (
-              <FileBubble att={item.att} mine={mine} myColor={prefs.bubble} />
+              <FileBubble convId={convId ?? ''} att={item.att} mine={mine} myColor={prefs.bubble} />
             )}
           </Animated.View>
         );
@@ -334,7 +337,7 @@ function ChatScreenInner() {
         </Animated.View>
       );
     },
-    [pal.meta, pal.wall, prefs.bubble, flash, convId, menu?.row.key],
+    [pal.meta, pal.wall, prefs.bubble, flash, convId, menu?.row.key, photo],
   );
 
   return (
@@ -388,6 +391,8 @@ function ChatScreenInner() {
           onAction={onMenuAction}
         />
       )}
+
+      {photo && <PhotoViewer photo={photo} onClosed={() => setPhoto(null)} />}
 
       <PlusMenu
         open={plusOpen}

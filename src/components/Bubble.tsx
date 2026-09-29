@@ -2,8 +2,8 @@ import MaskedView from '@react-native-masked-view/masked-view';
 import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
-import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { bubblePath, TAIL_W } from './bubble-path';
@@ -14,6 +14,7 @@ import { API_BASE, FROSTED_HIS_BUBBLE } from '@/lib/config';
 import { stickerUrl, useStickers } from '@/lib/stickers';
 import type { Media } from '@/lib/text';
 import { inkOn, usePalette } from '@/lib/colors';
+import { openPublic, shareFile } from '@/lib/open';
 
 // `boxed`: the parent already caps the width (Decorated), so don't cap again.
 type Props = { role: 'user' | 'assistant'; text: string; tail: boolean; myColor: string; big?: boolean; boxed?: boolean };
@@ -43,9 +44,7 @@ function TextBubble({ role, text, tail, myColor, boxed }: Props) {
 
   const shape = box ? bubblePath(box.w, box.h, side) : '';
   const svgW = box ? box.w + TAIL_W : 0;
-  const shapeStyle = box
-    ? { position: 'absolute' as const, top: 0, left: side === 'left' ? -TAIL_W : 0, width: svgW, height: box.h + 1 }
-    : null;
+  const shapeStyle = box ? { position: 'absolute' as const, top: 0, left: side === 'left' ? -TAIL_W : 0, width: svgW, height: box.h + 1 } : null;
 
   return (
     <View style={[boxed ? styles.wrapBoxed : styles.wrap, mine ? styles.mine : styles.his]}>
@@ -94,20 +93,30 @@ export function StickerBubble({ id, mine }: { id: string; mine: boolean }) {
 }
 
 // Image paths he pastes into text (camera shots, screenshots, album photos).
-export function InlineImageBubble({ url, mine }: { url: string; mine: boolean }) {
-  const [ratio, setRatio] = useState(1.33);
+export type PhotoOpen = { uri: string; headers?: Record<string, string>; name: string; ratio: number; rect: { x: number; y: number; w: number; h: number } };
+
+// A photo in the thread; tapping hands its place on screen to the full-screen viewer.
+function Photo({ uri, name, mine, hidden, onOpen }: { uri: string; name: string; mine: boolean; hidden?: boolean; onOpen?: (p: PhotoOpen) => void }) {
+  const [ratio, setRatio] = useState(1.3);
+  const ref = useRef<View>(null);
   const h = Math.max(120, Math.min(320, MAX_IMG / ratio));
+  const headers = authHeaders();
+  const open = () => ref.current?.measureInWindow((x, y, w, hh) => onOpen?.({ uri, headers, name, ratio, rect: { x, y, w, h: hh } }));
   return (
-    <View style={[styles.photo, mine ? styles.mine : styles.his, { width: MAX_IMG, height: h }]}>
+    <Pressable ref={ref} onPress={onOpen ? open : undefined} style={[styles.photo, mine ? styles.mine : styles.his, { width: MAX_IMG, height: h, opacity: hidden ? 0 : 1 }]}>
       <Image
-        source={{ uri: API_BASE + url, headers: authHeaders() }}
+        source={{ uri, headers }}
         style={StyleSheet.absoluteFill}
         contentFit="cover"
         transition={180}
         onLoad={(e) => e.source?.width && e.source?.height && setRatio(e.source.width / e.source.height)}
       />
-    </View>
+    </Pressable>
   );
+}
+
+export function InlineImageBubble({ url, mine, hidden, onOpen }: { url: string; mine: boolean; hidden?: boolean; onOpen?: (p: PhotoOpen) => void }) {
+  return <Photo uri={API_BASE + url} name={url.split('/').pop() || 'photo.jpg'} mine={mine} hidden={hidden} onOpen={onOpen} />;
 }
 
 const CARD_ICON = { doc: 'doc.fill', artifact: 'sparkles.rectangle.stack.fill', note: 'note.text', letter: 'envelope.fill' } as const;
@@ -116,53 +125,60 @@ export function CardBubble({ media, mine, myColor }: { media: Extract<Media, { k
   const pal = usePalette();
   const bg = mine && myColor !== 'glass' ? myColor : pal.hisFill;
   const ink = mine && myColor !== 'glass' ? inkOn(myColor) : pal.hisInk;
+  const open = media.url ? () => openPublic(media.url!) : undefined;
   return (
-    <View style={[styles.file, mine ? styles.mine : styles.his, { backgroundColor: bg }]}>
+    <Pressable onPress={open} disabled={!open} style={({ pressed }) => [styles.file, mine ? styles.mine : styles.his, { backgroundColor: bg }, pressed && { opacity: 0.7 }]}>
       <View style={[styles.fileIcon, { backgroundColor: pal.card }]}>
         <SymbolView name={CARD_ICON[media.icon]} size={18} tintColor={pal.ink2} />
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text numberOfLines={1} style={[styles.fileName, { color: ink }]}>{media.title}</Text>
-        {media.sub ? <Text numberOfLines={1} style={[styles.fileMeta, { color: ink }]}>{media.sub}</Text> : null}
+        <Text numberOfLines={1} style={[styles.fileName, { color: ink }]}>
+          {media.title}
+        </Text>
+        {media.sub ? (
+          <Text numberOfLines={1} style={[styles.fileMeta, { color: ink }]}>
+            {media.sub}
+          </Text>
+        ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
 const MAX_IMG = 240;
 
-export function PhotoBubble({ convId, att, mine }: { convId: string; att: Attachment; mine: boolean }) {
-  const [ratio, setRatio] = useState(1.25);
-  const h = Math.max(120, Math.min(320, MAX_IMG / ratio));
-  return (
-    <View style={[styles.photo, mine ? styles.mine : styles.his, { width: MAX_IMG, height: h }]}>
-      <Image
-        source={{ uri: attachmentUrl(convId, att), headers: authHeaders() }}
-        style={StyleSheet.absoluteFill}
-        contentFit="cover"
-        transition={180}
-        onLoad={(e) => e.source?.width && e.source?.height && setRatio(e.source.width / e.source.height)}
-      />
-    </View>
-  );
+export function PhotoBubble({ convId, att, mine, hidden, onOpen }: { convId: string; att: Attachment; mine: boolean; hidden?: boolean; onOpen?: (p: PhotoOpen) => void }) {
+  return <Photo uri={attachmentUrl(convId, att)} name={att.name} mine={mine} hidden={hidden} onOpen={onOpen} />;
 }
 
-export function FileBubble({ att, mine, myColor }: { att: Attachment; mine: boolean; myColor: string }) {
+export function FileBubble({ convId, att, mine, myColor }: { convId: string; att: Attachment; mine: boolean; myColor: string }) {
   const pal = usePalette();
   const bg = mine && myColor !== 'glass' ? myColor : pal.hisFill;
   const ink = mine && myColor !== 'glass' ? inkOn(myColor) : pal.hisInk;
   const ext = (att.name.split('.').pop() || '').toUpperCase().slice(0, 5);
   const size = att.size ? (att.size < 1048576 ? `${Math.round(att.size / 1024)} KB` : `${(att.size / 1048576).toFixed(1)} MB`) : '';
+  const [busy, setBusy] = useState(false);
+  const open = async () => {
+    if (!convId || busy) return;
+    setBusy(true);
+    try {
+      await shareFile(attachmentUrl(convId, att), att.name, true);
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
-    <View style={[styles.file, mine ? styles.mine : styles.his, { backgroundColor: bg }]}>
+    <Pressable onPress={open} style={({ pressed }) => [styles.file, mine ? styles.mine : styles.his, { backgroundColor: bg }, (pressed || busy) && { opacity: 0.7 }]}>
       <View style={[styles.fileIcon, { backgroundColor: pal.card }]}>
         <SymbolView name="doc.fill" size={18} tintColor={pal.ink2} />
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text numberOfLines={1} style={[styles.fileName, { color: ink }]}>{att.name}</Text>
+        <Text numberOfLines={1} style={[styles.fileName, { color: ink }]}>
+          {att.name}
+        </Text>
         <Text style={[styles.fileMeta, { color: ink }]}>{[ext, size].filter(Boolean).join(' · ')}</Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 

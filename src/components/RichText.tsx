@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import { Linking, Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
 import Animated, { Easing, cancelAnimation, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 
 import { parseRich, type Effect, type Run } from '@/lib/rich';
@@ -9,17 +10,23 @@ import { parseRich, type Effect, type Run } from '@/lib/rich';
 // `fxOnly` + `loop` is the composer's live preview layer: only the moving words show, over and over.
 export function RichText({ text, style, selectable, fxOnly, loop }: { text: string; style: StyleProp<TextStyle>; selectable?: boolean; fxOnly?: boolean; loop?: boolean }) {
   const runs = parseRich(text);
+  const flat = StyleSheet.flatten(style) || {};
   return (
     <Text selectable={selectable} style={style}>
       {runs.map((r, i) =>
-        r.fx && fxOnly && STILL.includes(r.fx) ? (
+        r.block === 'quote' && (i === 0 || runs[i - 1].text.endsWith('\n')) ? (
+          <Text key={i}>
+            <Text style={styles.quoteBar}>▍</Text>
+            <Text style={[runStyle(r, flat), fxOnly && styles.hidden]}>{r.text}</Text>
+          </Text>
+        ) : r.fx && fxOnly && STILL.includes(r.fx) ? (
           <Text key={i} style={[runStyle(r), { fontSize: fxSize(style, r.fx) }, styles.hidden]}>
             {r.text}
           </Text>
         ) : r.fx ? (
           <FxRun key={i} run={r} style={style} loop={loop} />
         ) : (
-          <Text key={i} style={[runStyle(r), fxOnly && styles.hidden]}>
+          <Text key={i} style={[runStyle(r, flat), fxOnly && styles.hidden]} onPress={r.link ? () => openLink(r.link!) : undefined}>
             {r.text}
           </Text>
         ),
@@ -28,11 +35,21 @@ export function RichText({ text, style, selectable, fxOnly, loop }: { text: stri
   );
 }
 
-const runStyle = (r: Run): TextStyle => ({
-  fontWeight: r.bold ? '700' : undefined,
-  fontStyle: r.italic ? 'italic' : undefined,
-  textDecorationLine: r.underline && r.strike ? 'underline line-through' : r.underline ? 'underline' : r.strike ? 'line-through' : undefined,
-});
+const runStyle = (r: Run, base: TextStyle = {}): TextStyle => {
+  const size = base.fontSize ?? 17;
+  const underline = r.underline || !!r.link;
+  return {
+    fontWeight: r.bold ? '700' : undefined,
+    fontStyle: r.italic ? 'italic' : undefined,
+    textDecorationLine: underline && r.strike ? 'underline line-through' : underline ? 'underline' : r.strike ? 'line-through' : undefined,
+    ...(r.code ? { fontFamily: 'Menlo', fontSize: size * 0.86, backgroundColor: 'rgba(127,127,127,0.22)' } : null),
+    ...(r.block === 'heading' ? { fontSize: size * 1.15 } : null),
+    ...(r.block === 'quote' ? { opacity: 0.78 } : null),
+    ...(r.bullet ? { fontWeight: '700' } : null),
+  };
+};
+
+const openLink = (url: string) => WebBrowser.openBrowserAsync(url).catch(() => Linking.openURL(url));
 
 const PER_CHAR: Effect[] = ['ripple', 'jitter'];
 // big/small are drawn by the composer field itself; the preview layer only keeps their room
@@ -129,4 +146,4 @@ function Piece({ fx, index, style, tick, onTap, children }: { fx: Effect; index:
   );
 }
 
-const styles = StyleSheet.create({ hidden: { color: 'transparent' } });
+const styles = StyleSheet.create({ hidden: { color: 'transparent' }, quoteBar: { opacity: 0.45 } });

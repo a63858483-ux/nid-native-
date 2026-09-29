@@ -41,6 +41,18 @@
           "photosPermission": "Nid uses your photos to set the chat wallpaper and to send pictures.",
           "cameraPermission": "Nid uses the camera to send photos in chat."
         }
+      ],
+      [
+        "expo-dev-client",
+        {
+          "launchMode": "most-recent"
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Nid uses the microphone to record voice messages."
+        }
       ]
     ],
     "experiments": {
