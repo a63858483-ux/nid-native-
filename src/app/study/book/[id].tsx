@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeOut, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { WebView, type WebViewMessageEvent } from 'react-native-webview';
+import type { WebView as WebViewType, WebViewMessageEvent } from 'react-native-webview';
 
 import { NidPdfView, type PdfMark, type PdfRef } from '../../../../modules/nid-pdf';
 import { HER_MARK, HIS_MARK, NoteThread } from '@/components/study/NoteThread';
@@ -29,6 +29,14 @@ const THEMES = [
   { name: 'Calm', paper: '#f0e0c6', ink: '#2b2418', weight: 400, meta: '#8f806a' },
   { name: 'Focus', paper: '#fffbf0', ink: '#1f1d17', weight: 400, meta: '#8f8a7a' },
 ];
+
+// Loaded on demand: builds made before the WebView was added would throw at import.
+let WebView: typeof WebViewType | null = null;
+try {
+  WebView = require('react-native-webview').WebView;
+} catch {
+  WebView = null;
+}
 
 type Reading = { theme: number; size: number; pos: Record<string, string | number> };
 const readingFile = () => new File(Paths.document, 'reading.json');
@@ -69,7 +77,7 @@ export default function Reader() {
   const [size, setSize] = useState(initial.size);
   const theme = THEMES[themeIdx] ?? THEMES[0];
 
-  const web = useRef<WebView>(null);
+  const web = useRef<WebViewType>(null);
   // The page is built once; theme changes go in through nidTheme so the book never reloads.
   const [html] = useState(() => readerHtml({ top: insets.top + 44, bottom: insets.bottom + 44, paper: (THEMES[initial.theme] ?? THEMES[0]).paper }));
   const pdf = useRef<PdfRef>(null);
@@ -296,7 +304,7 @@ export default function Reader() {
             }}
           />
         ) : null
-      ) : (
+      ) : WebView ? (
         <WebView
           ref={web}
           source={{ html, baseUrl: API_BASE }}
@@ -311,16 +319,16 @@ export default function Reader() {
           dataDetectorTypes="none"
           textInteractionEnabled
         />
-      )}
+      ) : null}
 
       {!ready && !failed && (
         <View style={styles.center} pointerEvents="none">
           <ActivityIndicator color={theme.meta} />
         </View>
       )}
-      {!!(failed || (isPdf && !NidPdfView)) && (
+      {!!(failed || (isPdf && !NidPdfView) || (!isPdf && !WebView)) && (
         <View style={styles.center}>
-          <Text style={[styles.failed, { color: theme.meta }]}>{failed || 'PDF reading needs the newer app build.'}</Text>
+          <Text style={[styles.failed, { color: theme.meta }]}>{failed || 'Reading needs the newer app build from TestFlight.'}</Text>
         </View>
       )}
 
