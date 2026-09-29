@@ -51,7 +51,7 @@ export type Row =
   | { type: 'inside'; key: string; itemKey: string; item: Inside; gapAbove: boolean; fresh?: boolean }
   | { type: 'typing'; key: string; itemKey: string; thought?: Thought };
 
-const DIVIDER_GAP = 30 * 60_000;
+const DIVIDER_GAP = 20 * 60_000;
 // Nid runs on Beijing time whatever the phone's zone says.
 const TZ = 'Asia/Shanghai';
 const hm = (d: Date) => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TZ });
