@@ -2,11 +2,13 @@ import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
+import Svg, { Circle, Rect } from 'react-native-svg';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { alarmId, alarmRecord, alarmTime, ensureAlarm } from '@/lib/alarms';
 import { usePalette } from '@/lib/colors';
 import { findSong, playSong, useNowPlaying, type Song } from '@/lib/music';
+import { NidMusic } from '../../modules/nid-music';
 import { useApp } from '@/state/app';
 
 const clean = (t: string) => t.replace(/\s*[(（][^)）]*[)）]\s*/g, ' ').trim();
@@ -33,6 +35,11 @@ export function SongCard({ query, mine }: { query: string; mine: boolean }) {
   const onPlay = async () => {
     if (!song || busy) return;
     Haptics.selectionAsync();
+    if (isThis && NidMusic) {
+      if (playing) NidMusic.pause();
+      else NidMusic.resume().catch(() => {});
+      return;
+    }
     setBusy(true);
     try {
       const r = await playSong(song);
@@ -80,16 +87,40 @@ export function SongCard({ query, mine }: { query: string; mine: boolean }) {
         <Pressable
           onPress={onPlay}
           hitSlop={8}
-          accessibilityLabel={playing ? 'Playing' : 'Play'}
-          style={({ pressed }) => [styles.play, pressed && { transform: [{ scale: 0.92 }] }]}>
+          accessibilityLabel={playing ? 'Pause' : 'Play'}
+          style={({ pressed }) => [styles.play, isThis && styles.playOn, pressed && { transform: [{ scale: 0.92 }] }]}>
           {busy ? (
             <ActivityIndicator color="#fff" />
+          ) : isThis ? (
+            <Ring playing={!!playing} fallback={song.duration} />
           ) : (
-            <SymbolView name={playing ? 'waveform' : 'play.fill'} size={18} tintColor="#fff" style={playing ? undefined : { marginLeft: 3 }} />
+            <SymbolView name="play.fill" size={18} tintColor="#fff" style={{ marginLeft: 3 }} />
           )}
+          {isThis && !playing && !busy && <SymbolView name="play.fill" size={15} tintColor="#FA2D48" style={styles.resume} />}
         </Pressable>
       ) : null}
     </View>
+  );
+}
+
+// Like Messages: a red pause inside a ring that fills as the song goes. Only mounted for the
+// song in the player, so only that card polls the play position.
+function Ring({ playing, fallback }: { playing: boolean; fallback: number }) {
+  const now = useNowPlaying(true);
+  const dur = now?.item?.duration || fallback || 0;
+  const frac = dur ? Math.min(1, (now?.time ?? 0) / dur) : 0;
+  const c = 2 * Math.PI * 17.5;
+  return (
+    <Svg width={40} height={40} viewBox="0 0 40 40">
+      <Circle cx={20} cy={20} r={17.5} stroke="rgba(250,45,72,0.18)" strokeWidth={2.5} fill="none" />
+      <Circle cx={20} cy={20} r={17.5} stroke="#FA2D48" strokeWidth={2.5} fill="none" strokeLinecap="round" strokeDasharray={`${c}`} strokeDashoffset={c * (1 - frac)} transform="rotate(-90 20 20)" />
+      {playing && (
+        <>
+          <Rect x={14.5} y={13.5} width={4} height={13} rx={1.2} fill="#FA2D48" />
+          <Rect x={21.5} y={13.5} width={4} height={13} rx={1.2} fill="#FA2D48" />
+        </>
+      )}
+    </Svg>
   );
 }
 
@@ -164,6 +195,8 @@ const styles = StyleSheet.create({
   brand: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 },
   brandText: { color: 'rgba(255,255,255,0.75)', fontSize: 12, fontWeight: '600' },
   play: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FA2D48', alignItems: 'center', justifyContent: 'center' },
+  playOn: { backgroundColor: 'rgba(255,255,255,0.55)' },
+  resume: { position: 'absolute', marginLeft: 3 },
   alarm: {
     width: 250,
     maxWidth: '78%',
