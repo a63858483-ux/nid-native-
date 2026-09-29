@@ -60,51 +60,51 @@ const FALLBACK = '#8b6f5a';
 
 // Covers sit behind login: fetch once with the token into the cache, then draw from disk
 // (release builds leave header-authenticated images blank).
-function useCover(url: string | null, id: number) {
+function useCover(url: string | null, id: number, stamp: number) {
   const [local, setLocal] = useState<string | null>(null);
   useEffect(() => {
     if (!url) return;
     let live = true;
-    download(url, `cover-${id}-${url.split('/').pop()}.img`, true)
+    download(url, `cover-${id}-${stamp}.jpg`, true)
       .then((f) => live && setLocal(f.uri))
       .catch(() => {});
     return () => {
       live = false;
     };
-  }, [url, id]);
+  }, [url, id, stamp]);
   return local;
 }
 
 export function BookCover({ book, width, onPress, onMore, dark }: { book: Book; width: number; onPress: () => void; onMore?: () => void; dark?: boolean }) {
   const h = width / RATIO;
-  const img = useCover(coverUrl(book), book.id);
+  const img = useCover(coverUrl(book), book.id, book.updated_at);
   const pct = Math.round(book.progress?.percent ?? 0);
   const small = width < 100;
   return (
     <View style={{ width }}>
       <Pressable onPress={onPress} style={({ pressed }) => [styles.shadow, { width, height: h }, pressed && styles.pressed]}>
         <View style={styles.cv}>
-        {img ? (
-          <Image source={{ uri: img }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
-        ) : (
-          <>
-            <Face w={width} h={h} color={book.cover_color || FALLBACK} id={`b${book.id}`} />
-            <View style={[styles.gen, small && styles.genSmall]}>
-              <View>
-                <Text style={[styles.gt, { fontSize: small ? 14 : 18 }]} numberOfLines={4}>
-                  {book.title}
-                </Text>
-                <View style={styles.rule} />
+          {img ? (
+            <Image source={{ uri: img }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
+          ) : (
+            <>
+              <Face w={width} h={h} color={book.cover_color || FALLBACK} id={`b${book.id}`} />
+              <View style={[styles.gen, small && styles.genSmall]}>
+                <View>
+                  <Text style={[styles.gt, { fontSize: small ? 14 : 18 }]} numberOfLines={4}>
+                    {book.title}
+                  </Text>
+                  <View style={styles.rule} />
+                </View>
+                {!!book.author && (
+                  <Text style={styles.ga} numberOfLines={2}>
+                    {book.author}
+                  </Text>
+                )}
               </View>
-              {!!book.author && (
-                <Text style={styles.ga} numberOfLines={2}>
-                  {book.author}
-                </Text>
-              )}
-            </View>
-          </>
-        )}
-        <Spine w={width} h={h} id={`b${book.id}`} />
+            </>
+          )}
+          <Spine w={width} h={h} id={`b${book.id}`} />
         </View>
       </Pressable>
       <View style={styles.meta}>
@@ -128,23 +128,23 @@ export function EssayCover({ essay, width, onPress, onMore, dark }: { essay: Ess
     <View style={{ width }}>
       <Pressable onPress={onPress} style={({ pressed }) => [styles.shadow, { width, height: h }, pressed && styles.pressed]}>
         <View style={styles.cv}>
-        <Face w={width} h={h} color={essay.cover_color || FALLBACK} id={`e${essay.id}`} grain />
-        {essay.author === 'ta' && <View style={styles.tagTa} />}
-        <View style={[styles.gen, small && styles.genSmall]}>
-          <View>
-            <Text style={[styles.gt, { fontSize: small ? 14 : 18 }]} numberOfLines={4}>
-              {essay.title}
-            </Text>
-            <View style={styles.rule} />
+          <Face w={width} h={h} color={essay.cover_color || FALLBACK} id={`e${essay.id}`} grain />
+          {essay.author === 'ta' && <View style={styles.tagTa} />}
+          <View style={[styles.gen, small && styles.genSmall]}>
+            <View>
+              <Text style={[styles.gt, { fontSize: small ? 14 : 18 }]} numberOfLines={4}>
+                {essay.title}
+              </Text>
+              <View style={styles.rule} />
+            </View>
+            <View>
+              <Text style={styles.ga}>{essay.author === 'ta' ? '挞挞' : 'ANTOINE'}</Text>
+              <Text style={styles.gd}>
+                {String(d.m).padStart(2, '0')}·{String(d.d).padStart(2, '0')}
+              </Text>
+            </View>
           </View>
-          <View>
-            <Text style={styles.ga}>{essay.author === 'ta' ? '挞挞' : 'ANTOINE'}</Text>
-            <Text style={styles.gd}>
-              {String(d.m).padStart(2, '0')}·{String(d.d).padStart(2, '0')}
-            </Text>
-          </View>
-        </View>
-        <Spine w={width} h={h} id={`e${essay.id}`} />
+          <Spine w={width} h={h} id={`e${essay.id}`} />
         </View>
       </Pressable>
       <View style={styles.meta}>
@@ -161,15 +161,7 @@ export function EssayCover({ essay, width, onPress, onMore, dark }: { essay: Ess
 
 const styles = StyleSheet.create({
   shadow: { shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 8 } },
-  cv: {
-    flex: 1,
-    borderTopLeftRadius: 3,
-    borderBottomLeftRadius: 3,
-    borderTopRightRadius: 6,
-    borderBottomRightRadius: 6,
-    overflow: 'hidden',
-    backgroundColor: '#b88a5e',
-  },
+  cv: { flex: 1, borderTopLeftRadius: 3, borderBottomLeftRadius: 3, borderTopRightRadius: 6, borderBottomRightRadius: 6, overflow: 'hidden', backgroundColor: '#b88a5e' },
   pressed: { transform: [{ scale: 0.96 }] },
   gen: { ...StyleSheet.absoluteFill, justifyContent: 'space-between', paddingTop: 14, paddingBottom: 12, paddingLeft: 18, paddingRight: 12 },
   genSmall: { paddingTop: 12, paddingBottom: 10, paddingLeft: 16, paddingRight: 10 },
@@ -177,7 +169,18 @@ const styles = StyleSheet.create({
   rule: { height: 1, width: 28, marginVertical: 6, backgroundColor: 'rgba(255,250,240,0.45)' },
   ga: { fontFamily: 'JosefinSans_400Regular', fontSize: 9, letterSpacing: 1.6, color: 'rgba(255,250,240,0.85)' },
   gd: { fontFamily: 'PlayfairDisplay_600SemiBold', fontSize: 11, color: 'rgba(255,250,240,0.8)', marginTop: 2 },
-  tagTa: { position: 'absolute', top: 8, right: 8, width: 7, height: 7, borderRadius: 4, backgroundColor: '#ff9fb2', borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)', zIndex: 2 },
+  tagTa: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#ff9fb2',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.4)',
+    zIndex: 2,
+  },
   meta: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, minHeight: 15 },
   metaText: { fontSize: 11, color: 'rgba(235,235,245,0.66)', fontVariant: ['tabular-nums'] },
   metaDark: { color: '#8a857c' },

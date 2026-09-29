@@ -119,7 +119,9 @@ window.nidOpen=async(url,token,cfi,t,list)=>{
     const res=await fetch(url,{headers:{Authorization:'Bearer '+token}});
     if(!res.ok){post('error',{m:'HTTP '+res.status});return}
     book=ePub(await res.arrayBuffer());
-    rend=book.renderTo('v',{width:'100%',height:'100%',flow:'paginated',spread:'none',allowScriptedContent:false});
+    rend=book.renderTo('v',{width:'100%',height:'100%',flow:'paginated',spread:'none',allowScriptedContent:true});
+    // WebKit fires no listeners inside a sandboxed iframe that lacks allow-scripts, so swipes,
+    // taps, selection and note links all went dead on the phone. The books are her own uploads.
     // Gentle defaults; the book's own stylesheet still wins wherever it says otherwise.
     rend.themes.default({body:{'line-height':'1.8'},p:{'text-align':'justify'}});
     rend.hooks.content.register(hookContents);
@@ -136,7 +138,17 @@ window.nidOpen=async(url,token,cfi,t,list)=>{
     applyTheme();
     await book.ready;
     book.loaded.navigation.then(nav=>{toc=flat(nav.toc||[],0);post('toc',{items:toc})});
-    await rend.display(cfi||undefined);
+    // A fresh book opens where the text starts, past the cover page (Apple Books does the same).
+    let start=cfi||undefined;
+    // Cover pages are named anything, so skip leading sections that are just a picture.
+    if(!start){
+      for(const s of book.spine.spineItems.slice(0,4)){
+        let bare=/cover/i.test((s.idref||'')+' '+(s.href||''));
+        if(!bare){try{const d=await s.load(book.load.bind(book));const b=d.body||d.querySelector('body');const txt=(b&&b.textContent||'').replace(/\s+/g,'');bare=txt.length<20&&!!(b&&b.querySelector('img,svg,image'));s.unload()}catch(e){}}
+        if(!bare){if(s.index>0)start=s.href;break}
+      }
+    }
+    await rend.display(start);
     if(list)window.nidMarks(list);
     post('ready',{title:(book.packaging&&book.packaging.metadata&&book.packaging.metadata.title)||''});
     book.locations.generate(1200).then(()=>{const l=rend.currentLocation();if(l&&l.start){rend.emit('relocated',l)}post('located',{total:book.locations.length()})});
