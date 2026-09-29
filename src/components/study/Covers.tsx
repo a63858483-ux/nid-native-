@@ -1,8 +1,9 @@
 import { Image } from 'expo-image';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Pattern, Rect, Stop } from 'react-native-svg';
 
-import { authHeaders } from '@/lib/api';
+import { download } from '@/lib/open';
 import { bjDate, coverUrl, type Book, type Essay } from '@/lib/study';
 
 const RATIO = 0.69;
@@ -57,9 +58,26 @@ function Face({ w, h, color, id, grain }: { w: number; h: number; color: string;
 
 const FALLBACK = '#8b6f5a';
 
+// Covers sit behind login: fetch once with the token into the cache, then draw from disk
+// (release builds leave header-authenticated images blank).
+function useCover(url: string | null, id: number) {
+  const [local, setLocal] = useState<string | null>(null);
+  useEffect(() => {
+    if (!url) return;
+    let live = true;
+    download(url, `cover-${id}-${url.split('/').pop()}.img`, true)
+      .then((f) => live && setLocal(f.uri))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [url, id]);
+  return local;
+}
+
 export function BookCover({ book, width, onPress, onMore, dark }: { book: Book; width: number; onPress: () => void; onMore?: () => void; dark?: boolean }) {
   const h = width / RATIO;
-  const img = coverUrl(book);
+  const img = useCover(coverUrl(book), book.id);
   const pct = Math.round(book.progress?.percent ?? 0);
   const small = width < 100;
   return (
@@ -67,7 +85,7 @@ export function BookCover({ book, width, onPress, onMore, dark }: { book: Book; 
       <Pressable onPress={onPress} style={({ pressed }) => [styles.shadow, { width, height: h }, pressed && styles.pressed]}>
         <View style={styles.cv}>
         {img ? (
-          <Image source={{ uri: img, headers: authHeaders() }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
+          <Image source={{ uri: img }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
         ) : (
           <>
             <Face w={width} h={h} color={book.cover_color || FALLBACK} id={`b${book.id}`} />

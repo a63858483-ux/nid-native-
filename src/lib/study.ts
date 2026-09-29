@@ -1,3 +1,5 @@
+import { File } from 'expo-file-system';
+
 import { authHeaders, call } from './api';
 import { API_BASE } from './config';
 
@@ -87,7 +89,7 @@ export const pomoDelete = (id: number) => call(`/api/pomodoro/${id}`, { method: 
 export async function uploadBook(file: { uri: string; name: string; mime: string }): Promise<{ id: number; title: string }> {
   const lower = file.name.toLowerCase();
   if (lower.endsWith('.txt')) {
-    const text = await (await fetch(file.uri)).text();
+    const text = await new File(file.uri).text();
     return call('/api/books/upload', json('POST', { title: file.name.replace(/\.txt$/i, ''), content: text }));
   }
   const form = new FormData();

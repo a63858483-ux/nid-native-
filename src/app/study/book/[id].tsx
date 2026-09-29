@@ -70,6 +70,8 @@ export default function Reader() {
   const theme = THEMES[themeIdx] ?? THEMES[0];
 
   const web = useRef<WebView>(null);
+  // The page is built once; theme changes go in through nidTheme so the book never reloads.
+  const [html] = useState(() => readerHtml({ top: insets.top + 44, bottom: insets.bottom + 44, paper: (THEMES[initial.theme] ?? THEMES[0]).paper }));
   const pdf = useRef<PdfRef>(null);
   const [pdfPath, setPdfPath] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -297,7 +299,7 @@ export default function Reader() {
       ) : (
         <WebView
           ref={web}
-          source={{ html: readerHtml({ top: insets.top + 44, bottom: insets.bottom + 44, paper: theme.paper }), baseUrl: API_BASE }}
+          source={{ html, baseUrl: API_BASE }}
           originWhitelist={['*']}
           onMessage={onMessage}
           scrollEnabled={false}
