@@ -2,6 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus, type AudioPlayer } from 'expo-audio';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { BlurView } from 'expo-blur';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
@@ -93,8 +94,20 @@ export function VoiceBubble({
       style={[
         styles.wrap,
         mine ? styles.mine : styles.his,
-        { backgroundColor: fill, borderBottomLeftRadius: !mine && tail ? 6 : 20, borderBottomRightRadius: mine && tail ? 6 : 20 },
+        // longer clips get wider bubbles, WeChat-style; a fixed width keeps the bars off the timer
+        {
+          width: Math.round(Math.min(300, 200 + seconds * 2.4)),
+          backgroundColor: mine ? fill : 'transparent',
+          borderBottomLeftRadius: !mine && tail ? 6 : 20,
+          borderBottomRightRadius: mine && tail ? 6 : 20,
+        },
       ]}>
+      {!mine && (
+        <>
+          <BlurView tint={pal.hisBlur} intensity={pal.hisBlurIntensity} style={StyleSheet.absoluteFill} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: fill }]} />
+        </>
+      )}
       <View style={styles.bar}>
         <Pressable onPress={toggle} hitSlop={6} accessibilityLabel={status.playing ? 'Pause' : 'Play'} style={[styles.play, { backgroundColor: btnBg }]}>
           {loading ? (
@@ -124,12 +137,12 @@ export function VoiceBubble({
 }
 
 const styles = StyleSheet.create({
-  wrap: { maxWidth: '78%', minWidth: 210, borderRadius: 20, paddingTop: 8, paddingBottom: 9, paddingLeft: 9, paddingRight: 13, borderCurve: 'continuous' },
+  wrap: { maxWidth: '82%', borderRadius: 20, paddingTop: 8, paddingBottom: 9, paddingLeft: 9, paddingRight: 13, borderCurve: 'continuous', overflow: 'hidden' },
   mine: { alignSelf: 'flex-end' },
   his: { alignSelf: 'flex-start' },
   bar: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   play: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  wave: { flex: 1, height: 28, flexDirection: 'row', alignItems: 'center', gap: 2 },
+  wave: { flex: 1, minWidth: 0, height: 28, flexDirection: 'row', alignItems: 'center', gap: 2, overflow: 'hidden' },
   b: { flex: 1, minWidth: 2, maxWidth: 3, borderRadius: 1.5 },
   dur: { fontSize: 13, fontVariant: ['tabular-nums'], minWidth: 30, textAlign: 'right' },
   tr: { marginTop: 6, marginHorizontal: 4, fontSize: 16, lineHeight: 22 },
