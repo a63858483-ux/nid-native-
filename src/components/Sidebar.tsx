@@ -50,39 +50,44 @@ function Settings({ pal }: { pal: ReturnType<typeof usePalette> }) {
   useEffect(() => {
     if (DEMO) {
       const t = setTimeout(() => {
-      setChan({ channel: 'max', model: 'fable-5-1', models: [{ id: 'fable-5-1', label: 'Fable 5.1' }] });
-      setBg(true);
-      setQuota([
-        { kind: 'session', label: '5-hour window', percent: 26, resets_at: null },
-        { kind: 'weekly_all', label: 'This week · all models', percent: 100, resets_at: null },
-        { kind: 'weekly_model', label: 'This week · Fable', percent: 100, resets_at: null },
-      ]);
+        setChan({ channel: 'max', model: 'fable-5-1', models: [{ id: 'fable-5-1', label: 'Fable 5.1' }] });
+        setBg(true);
+        setQuota([
+          { kind: 'session', label: '5-hour window', percent: 26, resets_at: null },
+          { kind: 'weekly_all', label: 'This week · all models', percent: 100, resets_at: null },
+          { kind: 'weekly_model', label: 'This week · Fable', percent: 100, resets_at: null },
+        ]);
       }, 0);
       return () => clearTimeout(t);
     }
-    api.channelGet().then(setChan).catch(() => {});
-    api.backgroundGet().then(setBg).catch(() => {});
-    api.quotaGet().then((q) => setQuota(q.limits ?? [])).catch(() => setQuota([]));
+    api
+      .channelGet()
+      .then(setChan)
+      .catch(() => {});
+    api
+      .backgroundGet()
+      .then(setBg)
+      .catch(() => {});
+    api
+      .quotaGet()
+      .then((q) => setQuota(q.limits ?? []))
+      .catch(() => setQuota([]));
   }, []);
 
   const pickChannel = () => {
     if (!chan) return;
     const options = ['Subscription', ...chan.models.map((m) => `API · ${m.label}`), 'Cancel'];
-    ActionSheetIOS.showActionSheetWithOptions(
-      { title: 'Channel', options, cancelButtonIndex: options.length - 1, userInterfaceStyle: pal.dark ? 'dark' : 'light' },
-      async (i) => {
-        if (i === options.length - 1) return;
-        try {
-          setChan(await api.channelSet(i === 0 ? 'max' : 'api', i === 0 ? undefined : chan.models[i - 1].id));
-        } catch {
-          showToast("Couldn't switch the channel");
-        }
-      },
-    );
+    ActionSheetIOS.showActionSheetWithOptions({ title: 'Channel', options, cancelButtonIndex: options.length - 1, userInterfaceStyle: pal.dark ? 'dark' : 'light' }, async (i) => {
+      if (i === options.length - 1) return;
+      try {
+        setChan(await api.channelSet(i === 0 ? 'max' : 'api', i === 0 ? undefined : chan.models[i - 1].id));
+      } catch {
+        showToast("Couldn't switch the channel");
+      }
+    });
   };
   const chipText = chan ? (chan.channel === 'max' ? 'Subscription' : `API · ${chan.models.find((m) => m.id === chan.model)?.label ?? chan.model}`) : '…';
-  const labelEn = (l: api.QuotaLimit) =>
-    l.kind === 'session' ? '5-hour window' : l.kind === 'weekly_all' ? 'This week · all models' : l.label.replace('本周 · ', 'This week · ');
+  const labelEn = (l: api.QuotaLimit) => (l.kind === 'session' ? '5-hour window' : l.kind === 'weekly_all' ? 'This week · all models' : l.label.replace('本周 · ', 'This week · '));
 
   return (
     <View style={[styles.foot, { borderTopColor: pal.line }]}>
@@ -114,7 +119,9 @@ function Settings({ pal }: { pal: ReturnType<typeof usePalette> }) {
           <View key={l.kind + l.label} style={styles.q}>
             <View style={styles.qHead}>
               <Text style={[styles.qLabel, { color: pal.ink }]}>{labelEn(l)}</Text>
-              <Text style={[styles.qReset, { color: pal.ink2 }]}>{fmtReset(l.kind, l.resets_at)}  {p}%</Text>
+              <Text style={[styles.qReset, { color: pal.ink2 }]}>
+                {fmtReset(l.kind, l.resets_at)} {p}%
+              </Text>
             </View>
             <View style={[styles.bar, { backgroundColor: pal.fill }]}>
               <View style={[styles.barFill, { width: `${p}%`, backgroundColor: color }]} />
@@ -142,11 +149,7 @@ export function Sidebar({ navigation }: DrawerContentComponentProps) {
     if (!term) return;
     const t = setTimeout(async () => {
       if (DEMO) {
-        setFound(
-          items
-            .filter((i) => i.text.includes(term))
-            .map((i) => ({ id: i.id ?? 0, conv_id: 'demo', role: i.role, text: i.text, timestamp: i.ts })),
-        );
+        setFound(items.filter((i) => i.text.includes(term)).map((i) => ({ id: i.id ?? 0, conv_id: 'demo', role: i.role, text: i.text, timestamp: i.ts })));
         return;
       }
       try {
@@ -186,7 +189,14 @@ export function Sidebar({ navigation }: DrawerContentComponentProps) {
     const snippet = (start ? '…' : '') + text.slice(start, start + 90).replace(/\s+/g, ' ');
     const parts = term ? snippet.split(term) : [snippet];
     return parts.flatMap((p, k) =>
-      k === 0 ? [p] : [<Text key={k} style={styles.mark}>{term}</Text>, p],
+      k === 0
+        ? [p]
+        : [
+            <Text key={k} style={styles.mark}>
+              {term}
+            </Text>,
+            p,
+          ],
     );
   };
 
@@ -272,9 +282,9 @@ export function Sidebar({ navigation }: DrawerContentComponentProps) {
                   key={n.key}
                   onPress={() => {
                     if (on) return navigation.closeDrawer();
-                    if (n.key === 'study' || n.key === 'music') {
+                    if (n.key === 'study' || n.key === 'music' || n.key === 'mind') {
                       navigation.closeDrawer();
-                      return router.push(n.key === 'study' ? '/study' : '/music');
+                      return router.push(n.key === 'study' ? '/study' : n.key === 'music' ? '/music' : '/mind');
                     }
                     showToast(`${n.label} comes in a later step`);
                   }}

@@ -450,7 +450,7 @@ function ChatScreenInner() {
       <EdgeBlur from="top" height={insets.top + HEADER_H} />
       <EdgeBlur from="bottom" height={insets.bottom + composerH + 10} />
 
-      <ChatHeader name={prefs.name} onMenu={() => nav.openDrawer()} onName={() => router.push('/sheet/name')} onCall={() => showToast('Calls come in a later step')} />
+      <ChatHeader name={prefs.name} onMenu={() => nav.openDrawer()} onName={() => router.push('/inner')} onCall={() => showToast('Calls come in a later step')} />
 
       <KeyboardStickyView offset={{ closed: 0, opened: insets.bottom - 6 }} style={styles.dock}>
         <View onLayout={(e) => setComposerH(e.nativeEvent.layout.height)} style={{ paddingBottom: insets.bottom + 6 }}>

@@ -41,6 +41,8 @@ function Shell() {
         <Stack.Screen name="sheet/thought" options={sheet([0.5, 0.95])} />
         <Stack.Screen name="sheet/add" options={sheet([0.5, 0.95])} />
         <Stack.Screen name="sheet/song" options={sheet([0.6, 0.95])} />
+        <Stack.Screen name="inner/index" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="mind/index" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="music/index" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="music/list" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="music/player" options={{ presentation: 'modal', contentStyle: { backgroundColor: '#222' } }} />
