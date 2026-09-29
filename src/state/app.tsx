@@ -1,6 +1,7 @@
 import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { AuthError, login, setToken } from '@/lib/api';
+import { startNowPlayingReports } from '@/lib/music';
 import { registerPush, unregisterPush } from '@/lib/push';
 import { DEMO } from '@/lib/config';
 import { clearToken, DEFAULT_PREFS, loadPrefs, loadToken, savePrefs, saveToken, type Prefs } from '@/lib/storage';
@@ -47,6 +48,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (signedIn) registerPush();
   }, [signedIn]);
+  // He gets told what she is playing in Apple Music.
+  useEffect(() => (signedIn ? startNowPlayingReports() : undefined), [signedIn]);
 
   const signOut = useCallback(async () => {
     await unregisterPush();

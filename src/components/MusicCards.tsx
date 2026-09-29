@@ -1,0 +1,205 @@
+import { Image } from 'expo-image';
+import * as Haptics from 'expo-haptics';
+import { SymbolView } from 'expo-symbols';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { alarmId, alarmRecord, alarmTime, cancelAlarm, ensureAlarm } from '@/lib/alarms';
+import { usePalette } from '@/lib/colors';
+import { findSong, playSong, useNowPlaying, type Song } from '@/lib/music';
+import { useApp } from '@/state/app';
+
+const clean = (t: string) => t.replace(/\s*[(（][^)）]*[)）]\s*/g, ' ').trim();
+
+// A song he picked: cover, title, artist; the round button plays it in Apple Music.
+export function SongCard({ query, mine }: { query: string; mine: boolean }) {
+  const pal = usePalette();
+  const { showToast } = useApp();
+  const [song, setSong] = useState<Song | null | undefined>(undefined);
+  const [busy, setBusy] = useState(false);
+  const now = useNowPlaying(false);
+  useEffect(() => {
+    let live = true;
+    findSong(query)
+      .then((s) => live && setSong(s))
+      .catch(() => live && setSong(null));
+    return () => {
+      live = false;
+    };
+  }, [query]);
+  const isThis = !!song && now?.item?.songId === song.id;
+  const playing = isThis && now?.playing;
+
+  const onPlay = async () => {
+    if (!song || busy) return;
+    Haptics.selectionAsync();
+    setBusy(true);
+    try {
+      const r = await playSong(song);
+      if (r === 'denied') showToast('Apple Music access is off in Settings');
+    } catch {
+      showToast("Couldn't play that one");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <View style={[styles.song, mine ? styles.mine : styles.his, { backgroundColor: song?.color ? song.color + 'CC' : pal.hisFill }]}>
+      {song ? (
+        <Image source={song.artwork} style={styles.cover} contentFit="cover" transition={160} />
+      ) : (
+        <View style={[styles.cover, { backgroundColor: 'rgba(255,255,255,0.15)' }]} />
+      )}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        {song === undefined ? (
+          <ActivityIndicator color="#fff" style={{ alignSelf: 'flex-start' }} />
+        ) : song ? (
+          <>
+            <Text numberOfLines={1} style={styles.title}>
+              {clean(song.title)}
+            </Text>
+            <Text numberOfLines={1} style={styles.artist}>
+              {song.artist}
+            </Text>
+            <View style={styles.brand}>
+              <SymbolView name="music.note" size={11} tintColor="rgba(255,255,255,0.75)" />
+              <Text style={styles.brandText}>Music</Text>
+            </View>
+          </>
+        ) : (
+          <>
+            <Text numberOfLines={1} style={styles.title}>
+              {query}
+            </Text>
+            <Text style={styles.artist}>Not on Apple Music</Text>
+          </>
+        )}
+      </View>
+      {song ? (
+        <Pressable
+          onPress={onPlay}
+          hitSlop={8}
+          accessibilityLabel={playing ? 'Playing' : 'Play'}
+          style={({ pressed }) => [styles.play, pressed && { transform: [{ scale: 0.92 }] }]}>
+          {busy ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <SymbolView name={playing ? 'waveform' : 'play.fill'} size={18} tintColor="#fff" style={playing ? undefined : { marginLeft: 3 }} />
+          )}
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+// An alarm he promised: the time big, day and title under it; it is set on this phone once.
+export function AlarmCard({ msgKey, sentAt, time, date, title, mine }: { msgKey: string; sentAt: string; time: string; date?: string; title: string; mine: boolean }) {
+  const pal = usePalette();
+  const { showToast } = useApp();
+  const id = alarmId(`${msgKey}|${date ?? ''}|${time}|${title}`);
+  const at = alarmTime(sentAt, time, date);
+  const [state, setState] = useState<string>(() => (alarmRecord(id)?.cancelled ? 'cancelled' : at <= Date.now() ? 'past' : alarmRecord(id) ? 'set' : 'pending'));
+  useEffect(() => {
+    if (state !== 'pending') return;
+    let live = true;
+    ensureAlarm(id, at, title)
+      .then((s) => live && setState(s))
+      .catch(() => live && setState('failed'));
+    return () => {
+      live = false;
+    };
+  }, [id, at, title, state]);
+
+  const d = new Date(at);
+  const [today] = useState(() => new Date());
+  const tomorrow = new Date(today.getTime() + 86400_000);
+  const day =
+    d.toDateString() === today.toDateString()
+      ? 'Today'
+      : d.toDateString() === tomorrow.toDateString()
+        ? 'Tomorrow'
+        : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' });
+  const status =
+    {
+      set: 'Set',
+      past: 'Went off',
+      cancelled: 'Cancelled',
+      pending: 'Setting…',
+      denied: 'Alarms are off in Settings',
+      unsupported: 'Needs the newer app',
+      failed: "Couldn't set it",
+    }[state] ?? '';
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  const dim = state === 'past' || state === 'cancelled';
+
+  return (
+    <View style={[styles.alarm, mine ? styles.mine : styles.his, { backgroundColor: pal.hisFill }]}>
+      <View style={styles.dial}>
+        <View style={[styles.hand, { transform: [{ rotate: `${(d.getHours() % 12) * 30 + d.getMinutes() * 0.5}deg` }] }]} />
+        <View style={[styles.hand, styles.minute, { transform: [{ rotate: `${d.getMinutes() * 6}deg` }] }]} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.time, { color: pal.hisInk }, dim && { opacity: 0.45 }]}>
+          {hh}:{mm}
+        </Text>
+        <Text numberOfLines={1} style={[styles.sub, { color: pal.meta }]}>
+          {[day, title, status].filter(Boolean).join(' · ')}
+        </Text>
+      </View>
+      {state === 'set' ? (
+        <Pressable
+          hitSlop={8}
+          accessibilityLabel="Cancel alarm"
+          onPress={async () => {
+            Haptics.selectionAsync();
+            await cancelAlarm(id);
+            setState('cancelled');
+            showToast('Alarm cancelled');
+          }}
+          style={styles.x}>
+          <SymbolView name="xmark" size={12} weight="bold" tintColor={pal.meta} />
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  mine: { alignSelf: 'flex-end' },
+  his: { alignSelf: 'flex-start' },
+  song: { width: 290, maxWidth: '80%', flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10, borderRadius: 18, borderCurve: 'continuous' },
+  cover: { width: 56, height: 56, borderRadius: 10 },
+  title: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  artist: { color: 'rgba(255,255,255,0.82)', fontSize: 14, marginTop: 1 },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 },
+  brandText: { color: 'rgba(255,255,255,0.75)', fontSize: 12, fontWeight: '600' },
+  play: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FA2D48', alignItems: 'center', justifyContent: 'center' },
+  alarm: {
+    width: 250,
+    maxWidth: '78%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    borderCurve: 'continuous',
+  },
+  dial: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#1C1C1E',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hand: { position: 'absolute', width: 2.5, height: 12, borderRadius: 1.5, backgroundColor: '#fff', top: 8, left: 18.75, transformOrigin: 'bottom' },
+  minute: { height: 16, top: 4, backgroundColor: '#FF9F0A' },
+  time: { fontSize: 30, fontWeight: '300', fontVariant: ['tabular-nums'], letterSpacing: -0.5 },
+  sub: { fontSize: 13, marginTop: -1 },
+  x: { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(120,120,128,0.25)', alignItems: 'center', justifyContent: 'center' },
+});

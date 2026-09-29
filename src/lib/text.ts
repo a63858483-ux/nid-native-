@@ -5,7 +5,9 @@ export type Media =
   | { kind: 'sticker'; id: string }
   | { kind: 'image'; url: string }
   | { kind: 'card'; icon: 'doc' | 'artifact' | 'note' | 'letter'; title: string; sub?: string; url?: string }
-  | { kind: 'voice'; text: string };
+  | { kind: 'voice'; text: string }
+  | { kind: 'song'; query: string }
+  | { kind: 'alarm'; date?: string; time: string; title: string };
 
 const IMG_RE = /(?:\/media\/[^\s)\]"<>`']+\.(?:png|jpe?g|gif|webp)(?:\?[^\s)\]"<>`']*)?)|(?:\/api\/albums\/media\/[^\s)\]"<>`']+\.(?:png|jpe?g|gif|webp)(?:\?[^\s)\]"<>`']*)?)/gi;
 const DROP = [
@@ -33,6 +35,16 @@ export function parseMessage(raw: string): { text: string; media: Media[] } {
   const open = t.indexOf('[voice]');
   if (open >= 0) t = t.slice(0, open);
   for (const re of DROP) t = t.replace(re, '');
+  // [song:歌手 歌名] → a playable Apple Music card
+  t = t.replace(/\[song:([^\]]+)\]/g, (_, q: string) => {
+    media.push({ kind: 'song', query: q.trim() });
+    return '';
+  });
+  // [alarm:07:30 早八] or [alarm:2026-10-01 07:30 早八] → a real system alarm
+  t = t.replace(/\[alarm:(?:(\d{4}-\d{2}-\d{2})\s+)?(\d{1,2}:\d{2})(?:\s+([^\]]*))?\]/g, (_, date: string | undefined, time: string, title: string | undefined) => {
+    media.push({ kind: 'alarm', date, time, title: (title || '').trim() });
+    return '';
+  });
   t = t.replace(/\[sticker:([^\]]+)\]/g, (_, id: string) => {
     media.push({ kind: 'sticker', id: id.trim() });
     return '';

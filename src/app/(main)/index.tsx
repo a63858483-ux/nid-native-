@@ -17,6 +17,7 @@ import { ConvertPanel } from '@/components/ConvertPanel';
 import { RecordOverlay } from '@/components/RecordOverlay';
 import { VoiceBubble } from '@/components/VoiceBubble';
 import { LinkCard } from '@/components/LinkCard';
+import { AlarmCard, SongCard } from '@/components/MusicCards';
 import { Decorated, RepliesLink, ReplyQuote } from '@/components/Decor';
 import { MessageMenu, type MenuAction } from '@/components/MessageMenu';
 import { PlusMenu, type PlusAction } from '@/components/PlusMenu';
@@ -354,6 +355,17 @@ function ChatScreenInner() {
               <InlineImageBubble url={m.url} mine={mine} hidden={photo?.uri.endsWith(m.url)} onOpen={setPhoto} />
             ) : m.kind === 'card' ? (
               <CardBubble media={m} mine={mine} myColor={prefs.bubble} />
+            ) : m.kind === 'song' ? (
+              <SongCard query={m.query} mine={mine} />
+            ) : m.kind === 'alarm' ? (
+              <AlarmCard
+                msgKey={item.itemKey}
+                sentAt={items.find((i) => i.key === item.itemKey)?.ts ?? new Date().toISOString()}
+                time={m.time}
+                date={m.date}
+                title={m.title}
+                mine={mine}
+              />
             ) : null}
           </Animated.View>
         );
@@ -397,7 +409,7 @@ function ChatScreenInner() {
         </Animated.View>
       );
     },
-    [pal.meta, pal.wall, prefs.bubble, flash, convId, menu?.row.key, photo],
+    [pal.meta, pal.wall, prefs.bubble, flash, convId, menu?.row.key, photo, items],
   );
 
   return (
