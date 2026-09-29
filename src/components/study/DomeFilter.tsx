@@ -36,7 +36,10 @@ function Chip({ label, on, onPress }: { label: string; on: boolean; onPress: () 
 // Library filter (her second recording): a dark bar whose chosen label sits in a dome that slides.
 export function DomeFilter({ items, value, onChange }: { items: { key: string; label: string }[]; value: string; onChange: (k: string) => void }) {
   const [w, setW] = useState(0);
-  const idx = Math.max(0, items.findIndex((i) => i.key === value));
+  const idx = Math.max(
+    0,
+    items.findIndex((i) => i.key === value),
+  );
   const cx = useSharedValue(-1);
   useEffect(() => {
     if (!w) return;
@@ -70,7 +73,7 @@ export function DomeFilter({ items, value, onChange }: { items: { key: string; l
 }
 
 // The quiet second row under Paper: who wrote it.
-export function WhoRow({ items, value, onChange }: { items: { key: string; label: string }[]; value: string; onChange: (k: string) => void }) {
+export function WhoRow({ items, value, onChange, light }: { items: { key: string; label: string }[]; value: string; onChange: (k: string) => void; light?: boolean }) {
   return (
     <View style={styles.who}>
       {items.map((it) => {
@@ -83,7 +86,7 @@ export function WhoRow({ items, value, onChange }: { items: { key: string; label
               onChange(it.key);
             }}
             hitSlop={8}>
-            <Text style={[styles.whoText, on && styles.whoOn]}>{it.label}</Text>
+            <Text style={[styles.whoText, on && styles.whoOn, light && styles.whoLight, light && on && styles.whoLightOn]}>{it.label}</Text>
           </Pressable>
         );
       })}
@@ -100,4 +103,6 @@ const styles = StyleSheet.create({
   who: { flexDirection: 'row', justifyContent: 'center', gap: 22, marginTop: 10 },
   whoText: { fontSize: 14, fontWeight: '500', color: '#8a857c', paddingVertical: 4, borderBottomWidth: 1.5, borderBottomColor: 'transparent' },
   whoOn: { color: '#1c1b19', borderBottomColor: '#1c1b19' },
+  whoLight: { color: 'rgba(255,255,255,0.6)', textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 6 },
+  whoLightOn: { color: '#fff', borderBottomColor: '#fff' },
 });

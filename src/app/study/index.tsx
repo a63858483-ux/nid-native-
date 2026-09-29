@@ -399,7 +399,6 @@ export default function Study() {
       </View>
       <Text style={styles.ptitle}>Library</Text>
       <View style={[styles.sticky, { paddingTop: insets.top > 0 ? 6 : 0 }]}>
-        <BlurView tint="systemUltraThinMaterialDark" intensity={40} style={StyleSheet.absoluteFill} />
         <DomeFilter
           items={[
             { key: 'all', label: 'All' },
@@ -412,6 +411,7 @@ export default function Study() {
         {lib === 'paper' && (
           <Animated.View entering={FadeIn.duration(180)}>
             <WhoRow
+              light
               items={[
                 { key: 'all', label: 'Both' },
                 { key: 'xiaoke', label: 'Antoine' },
@@ -536,6 +536,7 @@ const styles = StyleSheet.create({
     fontFamily: 'PlayfairDisplay_600SemiBold',
     fontSize: 34,
     color: '#fff',
+    textAlign: 'center',
     paddingHorizontal: 18,
     paddingTop: 8,
     paddingBottom: 4,
