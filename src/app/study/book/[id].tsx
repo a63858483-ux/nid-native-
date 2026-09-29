@@ -65,6 +65,12 @@ type Panel = null | 'menu' | 'toc' | 'marks' | 'search' | 'themes';
 type TocItem = { label: string; href?: string; page?: number; level: number };
 type Hit = { cfi?: string; index?: number; page?: number; excerpt: string };
 
+const MENU = [
+  { label: 'Highlight', key: 'highlight' },
+  { label: 'Add Note', key: 'note' },
+  { label: 'Copy', key: 'copy' },
+];
+
 export default function Reader() {
   const insets = useSafeAreaInsets();
   const { showToast } = useApp();
@@ -98,7 +104,10 @@ export default function Reader() {
   const js = useCallback((code: string) => web.current?.injectJavaScript(`${code};true;`), []);
   const roots = useMemo(() => notes.filter((n) => n.reply_to_id == null && n.quote), [notes]);
   const marksFor = useCallback(
-    (list: S.Note[]) => list.filter((n) => n.reply_to_id == null && n.quote).map((n) => ({ id: n.id, cfi: n.cfi, quote: n.quote, page: n.page_no ?? 0, color: n.author === 'ta' ? HER_MARK : HIS_MARK })),
+    (list: S.Note[]) =>
+      list
+        .filter((n) => n.reply_to_id == null && n.quote)
+        .map((n) => ({ id: n.id, cfi: n.cfi, quote: n.quote, page: n.page_no ?? 0, color: n.author === 'ta' ? HER_MARK : HIS_MARK })),
     [],
   );
 
@@ -189,6 +198,19 @@ export default function Reader() {
       case 'results':
         setHits((m.items as { cfi: string; excerpt: string }[]).map((h) => ({ cfi: h.cfi, excerpt: h.excerpt })));
         break;
+    }
+  };
+
+  const onMenu = async (key: string) => {
+    if (key === 'highlight') return highlight(false);
+    if (key === 'note') return highlight(true);
+    if (key === 'copy' && sel) {
+      try {
+        const Clipboard = await import('expo-clipboard');
+        await Clipboard.setStringAsync(sel.text);
+      } catch {}
+      js('window.nidClear()');
+      setSel(null);
     }
   };
 
@@ -318,6 +340,9 @@ export default function Reader() {
           allowsLinkPreview={false}
           dataDetectorTypes="none"
           textInteractionEnabled
+          // Like Apple Books: Highlight / Add Note live in the system selection menu itself.
+          menuItems={MENU}
+          onCustomMenuSelection={(e) => onMenu(e.nativeEvent.key)}
         />
       ) : null}
 
@@ -354,7 +379,7 @@ export default function Reader() {
         </Pressable>
       )}
 
-      {sel && !thread && (
+      {isPdf && sel && !thread && (
         <Animated.View entering={FadeInDown.duration(160)} exiting={FadeOutDown.duration(120)} style={[styles.selBar, { bottom: insets.bottom + 56 }]}>
           <Pressable onPress={() => highlight(false)} style={styles.selBtn}>
             <View style={[styles.swatch, { backgroundColor: HER_MARK }]} />
@@ -439,7 +464,16 @@ export default function Reader() {
             <>
               <View style={styles.searchRow}>
                 <SymbolView name="magnifyingglass" size={15} tintColor="#8e8e93" />
-                <TextInput value={q} onChangeText={setQ} onSubmitEditing={runSearch} placeholder="Search this book" placeholderTextColor="#8e8e93" style={styles.searchInput} autoFocus returnKeyType="search" />
+                <TextInput
+                  value={q}
+                  onChangeText={setQ}
+                  onSubmitEditing={runSearch}
+                  placeholder="Search this book"
+                  placeholderTextColor="#8e8e93"
+                  style={styles.searchInput}
+                  autoFocus
+                  returnKeyType="search"
+                />
               </View>
               {hits && hits.length === 0 && <ActivityIndicator style={{ marginTop: 20 }} />}
               <FlatList
@@ -541,26 +575,63 @@ const styles = StyleSheet.create({
   },
   menuDark: { backgroundColor: '#2c2c2e' },
   menuText: { fontSize: 15, color: '#111' },
-  selBar: { position: 'absolute', alignSelf: 'center', flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(30,30,32,0.94)', borderRadius: 22, paddingHorizontal: 6, height: 44 },
+  selBar: {
+    position: 'absolute',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(30,30,32,0.94)',
+    borderRadius: 22,
+    paddingHorizontal: 6,
+    height: 44,
+  },
   selBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, height: 44 },
   selSep: { width: StyleSheet.hairlineWidth, height: 22, backgroundColor: 'rgba(255,255,255,0.3)' },
   selText: { color: '#fff', fontSize: 15, fontWeight: '500' },
   swatch: { width: 14, height: 14, borderRadius: 7 },
-  footnote: { position: 'absolute', left: 22, right: 22, padding: 14, borderRadius: 14, backgroundColor: 'rgba(250,250,250,0.98)', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 18 },
+  footnote: {
+    position: 'absolute',
+    left: 22,
+    right: 22,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: 'rgba(250,250,250,0.98)',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 18,
+  },
   fnLabel: { fontSize: 12, color: '#3456c8', fontWeight: '600', marginBottom: 4 },
   fnText: { fontSize: 14, lineHeight: 22, color: '#222' },
   sheet: { position: 'absolute', left: 8, right: 8, bottom: 8, borderRadius: 28, overflow: 'hidden', paddingTop: 16, backgroundColor: 'rgba(245,245,247,0.7)' },
   sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, marginBottom: 10 },
   sheetTitle: { fontSize: 20, fontWeight: '700', color: '#111' },
   sheetX: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(118,118,128,0.16)', alignItems: 'center', justifyContent: 'center' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(0,0,0,0.1)' },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
   pressed: { backgroundColor: 'rgba(0,0,0,0.05)' },
   rowText: { flex: 1, fontSize: 15, color: '#111', lineHeight: 21 },
   rowMeta: { fontSize: 13, color: '#8e8e93', marginTop: 2 },
   markRow: { alignItems: 'stretch' },
   markBar: { width: 3, borderRadius: 2 },
   empty: { textAlign: 'center', color: '#8e8e93', marginTop: 30, fontSize: 14 },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginBottom: 8, paddingHorizontal: 12, height: 38, borderRadius: 12, backgroundColor: 'rgba(118,118,128,0.14)' },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(118,118,128,0.14)',
+  },
   searchInput: { flex: 1, fontSize: 16, color: '#111' },
   sizes: { flexDirection: 'row', gap: 10, marginHorizontal: 16, marginBottom: 12 },
   sizeBtn: { flex: 1, height: 40, borderRadius: 20, backgroundColor: '#e3e3e6', alignItems: 'center', justifyContent: 'center' },
