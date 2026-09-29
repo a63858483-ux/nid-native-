@@ -5,7 +5,6 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { DomeFilter } from '@/components/study/DomeFilter';
 import { StudyTabBar } from '@/components/study/TabBar';
 import * as Mind from '@/lib/mind';
 import { dayLabel } from '@/lib/rows';
@@ -13,6 +12,8 @@ import { dayLabel } from '@/lib/rows';
 const INK = '#1b1a19';
 const MUTED = '#8a857c';
 const GROUND = '#f6f5f2';
+// Web used Kaiti (楷体) with a serif fallback; iOS ships Songti, not Kaiti.
+const KAI = 'Songti SC';
 
 const MOOD_COLORS: Record<string, string> = {
   warm: '#C9776A',
@@ -73,6 +74,22 @@ function Search({ value, onChange, placeholder }: { value: string; onChange: (s:
   );
 }
 
+// Tier filter, as on the web Mind page: outlined pills, the chosen one filled white.
+function Chips({ items, value, onChange }: { items: { key: string; label: string }[]; value: string; onChange: (k: string) => void }) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+      {items.map((it) => {
+        const on = it.key === value;
+        return (
+          <Pressable key={it.key} onPress={() => !on && (Haptics.selectionAsync(), onChange(it.key))} style={[styles.chip, on && styles.chipOn]}>
+            <Text style={[styles.chipText, on && { color: INK }]}>{it.label}</Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
 function Head({ title }: { title: string }) {
   return (
     <View style={styles.head}>
@@ -102,12 +119,13 @@ function Feed({ entries, loading, empty }: { entries: Mind.MindEntry[] | null; l
       {groups.map((g) => (
         <View key={g.label} style={{ marginTop: 6 }}>
           <View style={styles.grpHead}>
-            <Text style={styles.grpLabel}>{g.label.toUpperCase()}</Text>
+            <Text style={styles.grpLabel}>{g.label}</Text>
+            <View style={styles.grpRule} />
             <Text style={styles.grpCount}>{g.items.length}</Text>
           </View>
-          <View style={styles.card}>
-            {g.items.map((e, i) => (
-              <View key={e.id} style={[styles.entry, i > 0 && styles.entryLine]}>
+          <View style={styles.list}>
+            {g.items.map((e) => (
+              <View key={e.id} style={[styles.entryCard, e.tier === 'fading' && { opacity: 0.75 }, e.tier === 'sleeping' && { opacity: 0.5 }]}>
                 {e.kind === 'event' && e.event_date ? <Text style={styles.entryWhen}>{e.event_date}</Text> : null}
                 <Text style={styles.entryText}>{e.content}</Text>
                 <View style={styles.entryMeta}>
@@ -259,9 +277,7 @@ export default function MindPage() {
       keyboardDismissMode="on-drag">
       <Head title="Memory" />
       <Search value={q[0]} onChange={(s) => onQuery(0, s)} placeholder="Dig it up — search the words" />
-      <View style={{ marginTop: 12, marginBottom: 4 }}>
-        <DomeFilter items={MEM_TIERS} value={tier.memory} onChange={(t) => onTier('memory', t)} />
-      </View>
+      <Chips items={MEM_TIERS} value={tier.memory} onChange={(t) => onTier('memory', t)} />
       {!q[0].trim() && pairs.length > 0 && (
         <View style={styles.pairWrap}>
           <Pressable onPress={() => setPairsOpen((v) => !v)} style={styles.pairBtn}>
@@ -307,9 +323,7 @@ export default function MindPage() {
       keyboardDismissMode="on-drag">
       <Head title="Feel" />
       <Search value={q[1]} onChange={(s) => onQuery(1, s)} placeholder="Dig it up — search the words" />
-      <View style={{ marginTop: 12, marginBottom: 4 }}>
-        <DomeFilter items={FEEL_TIERS} value={tier.feel} onChange={(t) => onTier('feel', t)} />
-      </View>
+      <Chips items={FEEL_TIERS} value={tier.feel} onChange={(t) => onTier('feel', t)} />
       <Feed
         entries={feel}
         loading={feel === null}
@@ -327,12 +341,13 @@ export default function MindPage() {
       ) : !portraits.length ? (
         <Text style={styles.empty}>Nothing yet — steady little things he notices about you settle here on their own.</Text>
       ) : (
-        <View style={[styles.card, { marginTop: 14 }]}>
-          {portraitGroups.map((g, gi) => (
+        <View style={[styles.card, { marginTop: 14, paddingHorizontal: 17, paddingTop: 6, paddingBottom: 12, borderRadius: 24 }]}>
+          {portraitGroups.map((g) => (
             <View key={g.aspect}>
-              <View style={[styles.grpHead, gi > 0 && { marginTop: 6 }]}>
-                <Text style={styles.grpLabel}>{g.aspect.toUpperCase()}</Text>
-                <Text style={styles.grpCount}>{g.items.length}</Text>
+              <View style={styles.hcat}>
+                <Text style={styles.hcatLabel}>{g.aspect}</Text>
+                <Text style={styles.hcatCount}>{g.items.length}</Text>
+                <View style={styles.grpRule} />
               </View>
               {g.aspect === '亲密' && !unlocked ? (
                 <Pressable onPress={unlock} style={styles.lockRow}>
@@ -340,11 +355,12 @@ export default function MindPage() {
                   <Text style={styles.lockText}>Locked — same password as the album</Text>
                 </Pressable>
               ) : (
-                g.items.map((p, i) => (
-                  <View key={p.id} style={[styles.entry, i > 0 && styles.entryLine, styles.portraitRow]}>
-                    <Text style={[styles.entryText, { flex: 1 }]}>{p.content}</Text>
-                    <Pressable onPress={() => removePortrait(p.id)} hitSlop={8}>
-                      <SymbolView name="xmark" size={13} tintColor={MUTED} />
+                g.items.map((p) => (
+                  <View key={p.id} style={styles.hitem}>
+                    <View style={styles.hdot} />
+                    <Text style={styles.hitemText}>{p.content}</Text>
+                    <Pressable onPress={() => removePortrait(p.id)} hitSlop={8} style={{ paddingTop: 7 }}>
+                      <SymbolView name="xmark" size={12} tintColor={MUTED} />
                     </Pressable>
                   </View>
                 ))
@@ -402,28 +418,49 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 15, color: INK },
   card: { marginHorizontal: 20, backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden' },
   empty: { textAlign: 'center', color: MUTED, fontSize: 14, marginTop: 40, marginHorizontal: 30, lineHeight: 20 },
-  grpHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginHorizontal: 20, marginTop: 14, marginBottom: 6 },
-  grpLabel: { fontSize: 11.5, fontWeight: '700', letterSpacing: 0.6, color: MUTED },
-  grpCount: { fontSize: 11.5, color: MUTED },
-  entry: { paddingVertical: 11, paddingHorizontal: 16, gap: 5 },
-  entryLine: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(27,26,25,0.1)' },
+  grpHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 24, paddingTop: 12, paddingBottom: 8 },
+  grpLabel: { fontSize: 15, fontWeight: '800', letterSpacing: 1.5, color: INK },
+  grpCount: { fontSize: 12, color: MUTED },
+  grpRule: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(22,22,20,0.18)' },
+  list: { marginHorizontal: 16, gap: 8 },
+  entryCard: {
+    backgroundColor: '#fff',
+    borderRadius: 19,
+    paddingTop: 13,
+    paddingHorizontal: 15,
+    paddingBottom: 10,
+    shadowColor: '#161614',
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+  },
+  hcat: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingTop: 11, paddingBottom: 4 },
+  hcatLabel: { fontSize: 13.5, fontWeight: '700', color: INK },
+  hcatCount: { fontSize: 10, fontWeight: '700', color: MUTED },
+  hitem: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, paddingVertical: 4 },
+  hdot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: INK, opacity: 0.3, marginTop: 11 },
+  hitemText: { flex: 1, fontFamily: KAI, fontSize: 15.5, lineHeight: 26.4, letterSpacing: 0.3, color: '#4a463f' },
   entryWhen: { fontSize: 11, fontWeight: '700', color: MUTED },
-  entryText: { fontSize: 14.5, color: INK, lineHeight: 20 },
-  entrySub: { fontSize: 12.5, color: MUTED, fontStyle: 'italic' },
-  entryMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  entryText: { fontFamily: KAI, fontSize: 17, lineHeight: 30.6, letterSpacing: 0.34, color: INK },
+  entrySub: { fontFamily: KAI, fontSize: 14, lineHeight: 22, color: MUTED, marginTop: 6 },
+  entryMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 10 },
   entryTime: { marginLeft: 'auto', fontSize: 12, color: MUTED, fontVariant: ['tabular-nums'] },
-  badge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: '#f0efe9' },
-  badgeText: { fontSize: 10.5, fontWeight: '700', color: '#6b665c' },
-  mood: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  badge: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 7, backgroundColor: INK },
+  badgeText: { fontSize: 10.5, fontWeight: '700', letterSpacing: 1, color: '#f7f7f4' },
+  mood: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 7, backgroundColor: GROUND },
   moodDot: { width: 7, height: 7, borderRadius: 3.5 },
-  moodText: { fontSize: 12, color: MUTED },
+  moodText: { fontSize: 12, color: '#4a463f' },
+  chips: { gap: 7, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 6 },
+  chip: { borderWidth: 1, borderColor: 'rgba(22,22,20,0.14)', borderRadius: 999, paddingVertical: 6, paddingHorizontal: 14 },
+  chipOn: { backgroundColor: '#fff', borderColor: 'rgba(22,22,20,0.35)' },
+  chipText: { fontSize: 12.5, color: MUTED },
   pairWrap: { marginHorizontal: 20, marginTop: 4, marginBottom: 4 },
   pairBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14 },
   pairBtnText: { flex: 1, fontSize: 13, color: INK, fontWeight: '500' },
   pairChevron: { fontSize: 12, color: MUTED },
   pairCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginTop: 6, gap: 6 },
-  pairM: { fontSize: 14, color: INK },
-  pairF: { fontSize: 13, color: '#B05080' },
+  pairM: { fontFamily: KAI, fontSize: 16, lineHeight: 26, color: INK },
+  pairF: { fontFamily: KAI, fontSize: 14, lineHeight: 22, color: '#B05080' },
   pairActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
   pairOk: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: '#1b1a19' },
   pairOkText: { fontSize: 12.5, fontWeight: '700', color: '#fff' },
@@ -431,5 +468,4 @@ const styles = StyleSheet.create({
   pairNoText: { fontSize: 12.5, fontWeight: '700', color: '#6b665c' },
   lockRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 14, paddingHorizontal: 16 },
   lockText: { fontSize: 13, color: MUTED },
-  portraitRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 });

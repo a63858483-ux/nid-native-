@@ -15,7 +15,9 @@ const INK = '#1b1a19';
 const MUTED = '#8a857c';
 const GROUND = '#f6f5f2';
 const HOT = '#c0392b';
-const COOL = '#8aa0a8';
+const INK2 = '#4a463f';
+// Web used Kaiti (楷体) with a serif fallback; iOS ships Songti, not Kaiti.
+const KAI = 'Songti SC';
 
 function relDays(iso: string) {
   return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400_000));
@@ -174,22 +176,20 @@ export default function Inner() {
               const open = openDim === k;
               return (
                 <View key={k}>
-                  <Pressable disabled={!ths.length} onPress={() => setOpenDim(open ? null : k)} style={[styles.dimRow, i > 0 && styles.dimLine]}>
-                    <Text style={styles.dimName} numberOfLines={1}>
+                  <Pressable disabled={!ths.length} onPress={() => setOpenDim(open ? null : k)} style={styles.dimRow}>
+                    <Text style={[styles.dimName, v >= 0.55 && { color: HOT }, v < 0.3 && { color: MUTED }]} numberOfLines={1}>
                       {data.dim_labels[k] || k}
                     </Text>
                     <View style={styles.dimTrack}>
-                      <View style={[styles.dimFill, { width: `${pct}%` }, v >= 0.55 && { backgroundColor: HOT }, v < 0.3 && { backgroundColor: COOL }]} />
+                      <View style={[styles.dimFill, { width: `${pct}%` }, v >= 0.55 && { backgroundColor: HOT }, v < 0.3 && { opacity: 0.28 }]} />
                     </View>
                     {ths.length > 0 && <Text style={styles.dimN}>{ths.length}</Text>}
-                    <Text style={styles.dimV}>{pct >= 100 ? '1.0' : `.${String(pct).padStart(2, '0')}`}</Text>
+                    <Text style={[styles.dimV, v >= 0.55 && { color: HOT }, v < 0.3 && { color: MUTED }]}>{pct >= 100 ? '1.0' : `.${String(pct).padStart(2, '0')}`}</Text>
                   </Pressable>
                   {open &&
                     ths.map((t, ti) => (
                       <View key={ti} style={styles.thought}>
-                        <Text style={styles.thoughtB} numberOfLines={2}>
-                          {t.body || '(a pull with no words yet)'}
-                        </Text>
+                        <Text style={styles.thoughtB}>{t.body || '(a pull with no words yet)'}</Text>
                         <Text style={styles.thoughtK}>
                           {t.type === 'obsession' ? '↑' : '↓'} {Math.round((t.value || 0) * 100)}
                         </Text>
@@ -220,9 +220,7 @@ export default function Inner() {
             const r = dianjiRight(e);
             return (
               <View key={e.id} style={[styles.dj, i > 0 && styles.dimLine]}>
-                <Text style={styles.djText} numberOfLines={2}>
-                  {e.body}
-                </Text>
+                <Text style={styles.djText}>{e.body}</Text>
                 <View style={styles.djR}>
                   <Text style={[styles.djLabel, r.urgent && { color: HOT }]}>{r.label}</Text>
                   <Text style={styles.djSub}>{r.sub}</Text>
@@ -253,9 +251,7 @@ export default function Inner() {
             const c = factCountdown(f);
             return (
               <View key={f.id} style={[styles.fact, i > 0 && styles.dimLine]}>
-                <Text style={styles.factText} numberOfLines={2}>
-                  {f.body}
-                </Text>
+                <Text style={styles.factText}>{f.body}</Text>
                 <View style={styles.factMeta}>
                   <Text style={styles.factTxt}>{c.txt}</Text>
                   <View style={styles.dimTrack}>
@@ -318,7 +314,7 @@ const styles = StyleSheet.create({
   },
   whoAva: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#ddd' },
   whoName: { fontSize: 14.5, fontWeight: '600', color: INK },
-  card: { marginHorizontal: 14, marginBottom: 16, backgroundColor: '#fff', borderRadius: 18, overflow: 'hidden' },
+  card: { marginHorizontal: 14, marginBottom: 10, backgroundColor: '#fff', borderRadius: 24, overflow: 'hidden', paddingVertical: 4 },
   empty: { textAlign: 'center', color: MUTED, fontSize: 14, marginTop: 50 },
   foot: { fontSize: 12.5, lineHeight: 18, color: MUTED, marginHorizontal: 22, marginTop: -4 },
   // state card
@@ -326,34 +322,34 @@ const styles = StyleSheet.create({
   stateHeadT: { fontSize: 11.5, fontWeight: '700', letterSpacing: 0.8, color: MUTED },
   stateHeadS: { fontSize: 11.5, color: MUTED },
   stateMain: { flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingHorizontal: 16, paddingTop: 8 },
-  big: { fontFamily: 'PlayfairDisplay_800ExtraBold_Italic', fontSize: 26, color: INK, flexShrink: 1 },
-  bigV: { fontSize: 16, fontWeight: '700', color: HOT, fontVariant: ['tabular-nums'] },
-  sense: { fontSize: 13.5, color: '#5a564e', marginHorizontal: 16, marginTop: 6, lineHeight: 19 },
+  big: { fontSize: 36, fontWeight: '700', letterSpacing: -1, color: INK, flexShrink: 1 },
+  bigV: { fontSize: 24, fontWeight: '800', color: INK2, fontVariant: ['tabular-nums'] },
+  sense: { fontFamily: KAI, fontSize: 15, lineHeight: 26, letterSpacing: 0.15, color: INK2, marginHorizontal: 16, marginTop: 10 },
   spark: { flexDirection: 'row', alignItems: 'flex-end', gap: 2, height: 46, marginHorizontal: 16, marginTop: 14, marginBottom: 4 },
   sparkBar: { flex: 1, borderRadius: 2, backgroundColor: '#e4e1d8' },
   sparkNow: { backgroundColor: HOT },
   // dims
-  dimRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 11, paddingHorizontal: 16 },
+  dimRow: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 7, paddingHorizontal: 16 },
   dimLine: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(27,26,25,0.1)' },
-  dimName: { width: 70, fontSize: 13, fontWeight: '600', color: INK },
-  dimTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: '#eeece5', overflow: 'hidden' },
-  dimFill: { height: 6, borderRadius: 3, backgroundColor: '#b8b2a3' },
+  dimName: { width: 96, fontSize: 10.5, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: INK2 },
+  dimTrack: { flex: 1, height: 5, borderRadius: 3, backgroundColor: GROUND, overflow: 'hidden' },
+  dimFill: { height: 5, borderRadius: 3, backgroundColor: INK },
   dimN: { fontSize: 11, color: MUTED },
-  dimV: { width: 34, textAlign: 'right', fontSize: 12.5, fontVariant: ['tabular-nums'], color: MUTED },
+  dimV: { width: 40, textAlign: 'right', fontSize: 14, fontWeight: '700', fontVariant: ['tabular-nums'], color: INK },
   thought: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 16, paddingLeft: 30, backgroundColor: '#faf9f6' },
-  thoughtB: { flex: 1, fontSize: 13, color: '#4a463f' },
+  thoughtB: { flex: 1, fontFamily: KAI, fontSize: 14, lineHeight: 22.4, color: INK2 },
   thoughtK: { fontSize: 12, fontWeight: '700', color: MUTED, fontVariant: ['tabular-nums'] },
   // dianji
   dj: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 16 },
-  djText: { flex: 1, fontSize: 14.5, color: INK, lineHeight: 20 },
+  djText: { flex: 1, fontFamily: KAI, fontSize: 16, lineHeight: 26.4, letterSpacing: 0.3, color: INK },
   djR: { alignItems: 'flex-end' },
-  djLabel: { fontSize: 13, fontWeight: '700', color: INK, fontVariant: ['tabular-nums'] },
-  djSub: { fontSize: 11, color: MUTED },
-  djBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: '#f0efe9' },
-  djBtnText: { fontSize: 12, fontWeight: '700', color: INK },
+  djLabel: { fontSize: 22, fontWeight: '800', color: INK, fontVariant: ['tabular-nums'] },
+  djSub: { fontSize: 9.5, color: MUTED, marginTop: 2 },
+  djBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(22,22,20,0.16)' },
+  djBtnText: { fontSize: 11.5, color: INK2 },
   // facts
   fact: { paddingVertical: 12, paddingHorizontal: 16, gap: 6 },
-  factText: { fontSize: 14.5, color: INK, lineHeight: 20 },
+  factText: { fontSize: 15, lineHeight: 22.5, color: INK },
   factMeta: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  factTxt: { fontSize: 12, color: MUTED, width: 76 },
+  factTxt: { fontSize: 10, color: MUTED, width: 76, fontVariant: ['tabular-nums'] },
 });
