@@ -20,6 +20,7 @@ import * as Haptics from 'expo-haptics';
 
 import { Glass } from './Glass';
 import type { Attachment } from '@/lib/api';
+import type { SharedSong } from '@/lib/music';
 import { inkOn, usePalette } from '@/lib/colors';
 import { RichText, fxSize } from './RichText';
 import { isFormat, piecesOf, serialize, shiftSpans, toggleSpan, type Kind, type Span } from '@/lib/compose';
@@ -53,6 +54,8 @@ export function Composer({
   myColor,
   plusOpen,
   pending,
+  song,
+  onRemoveSong,
   onRemovePending,
   onPlus,
   onSend,
@@ -65,6 +68,9 @@ export function Composer({
   myColor: string;
   plusOpen: boolean;
   pending: Pending[];
+  // a song she picked to send him; shows as a card above the text
+  song?: SharedSong | null;
+  onRemoveSong?: () => void;
   onRemovePending: (local: string) => void;
   onPlus: () => void;
   onSend: (text: string) => void;
@@ -109,7 +115,7 @@ export function Composer({
     return () => sub.remove();
   });
   const uploading = pending.some((p) => p.uploading);
-  const ready = (text.trim().length > 0 || pending.length > 0) && !uploading;
+  const ready = (text.trim().length > 0 || pending.length > 0 || !!song) && !uploading;
   const rot = useSharedValue(0);
   const morph = useSharedValue(0);
 
@@ -195,6 +201,28 @@ export function Composer({
           <HoldBar onHold={onHold} />
         ) : (
           <Glass tint={tint} style={styles.pill}>
+            {song && (
+              <View style={styles.songWrap}>
+                <View style={[styles.songCard, { backgroundColor: pal.card }]}>
+                  <Image source={song.artwork || undefined} style={styles.songArt} contentFit="cover" />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text numberOfLines={1} style={[styles.songTitle, { color: pal.ink }]}>
+                      {song.title}
+                    </Text>
+                    <Text numberOfLines={1} style={[styles.songSub, { color: pal.ink2 }]}>
+                      {song.artist}
+                    </Text>
+                    <Text style={[styles.songSub, { color: pal.ink2 }]}>♪ Music</Text>
+                  </View>
+                  <View style={styles.songPlay}>
+                    <SymbolView name="play.fill" size={14} tintColor="#fff" />
+                  </View>
+                  <Pressable onPress={onRemoveSong} hitSlop={8} style={styles.chipX} accessibilityLabel="Remove song">
+                    <SymbolView name="xmark" size={9} weight="bold" tintColor="#fff" />
+                  </Pressable>
+                </View>
+              </View>
+            )}
             {pending.length > 0 && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="always">
                 {pending.map((p) => (
@@ -319,6 +347,12 @@ function HoldBar({ onHold }: { onHold?: (e: HoldEvent) => void }) {
 }
 
 const styles = StyleSheet.create({
+  songWrap: { alignItems: 'center', paddingTop: 10, paddingHorizontal: 10 },
+  songCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10, borderRadius: 16, width: '82%' },
+  songArt: { width: 58, height: 58, borderRadius: 6, backgroundColor: 'rgba(118,118,128,0.2)' },
+  songTitle: { fontSize: 16, fontWeight: '600' },
+  songSub: { fontSize: 13 },
+  songPlay: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#FA2D48', alignItems: 'center', justifyContent: 'center', paddingLeft: 2 },
   barRow: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 12, paddingTop: 6 },
   bar: { height: 38, borderRadius: 19, paddingHorizontal: 6, justifyContent: 'center', maxWidth: '100%' },
   fmtRow: { flexDirection: 'row', alignItems: 'center' },

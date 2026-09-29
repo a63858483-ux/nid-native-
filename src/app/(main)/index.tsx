@@ -23,6 +23,7 @@ import { MessageMenu, type MenuAction } from '@/components/MessageMenu';
 import { PlusMenu, type PlusAction } from '@/components/PlusMenu';
 import { FOCUS_EVENT } from '@/components/Sidebar';
 import { ActivityPill, CallDivider } from '@/components/ActivityPill';
+import { SHARE_SONG, type SharedSong } from '@/lib/music';
 import { ThoughtLine } from '@/components/ThoughtLine';
 import { Typing } from '@/components/Typing';
 import * as api from '@/lib/api';
@@ -181,6 +182,13 @@ function ChatScreenInner() {
     return () => clearTimeout(t);
   }, [nav]);
 
+  // A song picked in the Music sheet (or sent from the player) waits in the composer.
+  const [song, setSong] = useState<SharedSong | null>(null);
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener(SHARE_SONG, (s: SharedSong) => setSong(s));
+    return () => sub.remove();
+  }, []);
+
   // Attachments upload as soon as they are picked; the send button waits for them.
   const addFiles = useCallback(
     async (picked: { uri: string; name: string; mime: string; isImage: boolean }[]) => {
@@ -241,13 +249,17 @@ function ChatScreenInner() {
     if (a === 'photos') return pickPhotos(false);
     if (a === 'files') return pickFiles();
     if (a === 'stickers') return router.push('/sheet/stickers');
+    if (a === 'music') return router.push('/sheet/song');
     router.push(`/sheet/${a}`);
   };
 
   const onSend = (text: string) => {
     const atts = pending.map((p) => p.att).filter((a): a is api.Attachment => !!a);
     setPending([]);
-    send(text, atts);
+    // A shared song goes as its own [song:] line (a card on both sides), her comment under it.
+    const body = song ? `[song:${song.artist} ${song.title}]${text.trim() ? `\n\n${text}` : ''}` : text;
+    setSong(null);
+    send(body, atts);
   };
 
   // Split replies: a reaction or reply points at the one bubble, quoted by its own opening words.
@@ -446,6 +458,9 @@ function ChatScreenInner() {
             myColor={prefs.bubble}
             plusOpen={plusOpen}
             pending={pending}
+            song={song}
+            onRemoveSong={() => setSong(null)}
+            placeholder={song ? 'Add comment or Send' : undefined}
             onRemovePending={(local) => setPending((cur) => cur.filter((p) => p.local !== local))}
             onPlus={() => {
               Haptics.selectionAsync();

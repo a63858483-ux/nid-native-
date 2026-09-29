@@ -21,6 +21,7 @@ const NAV: { key: string; label: string; icon: SFSymbol; meta: string }[] = [
   { key: 'museum', label: 'Museum', icon: 'building.columns', meta: '' },
   { key: 'mind', label: 'Mind', icon: 'heart', meta: '' },
   { key: 'study', label: 'Study', icon: 'book', meta: '' },
+  { key: 'music', label: 'Music', icon: 'music.note', meta: '' },
   { key: 'album', label: 'Album', icon: 'photo', meta: 'locked' },
 ];
 
@@ -271,9 +272,9 @@ export function Sidebar({ navigation }: DrawerContentComponentProps) {
                   key={n.key}
                   onPress={() => {
                     if (on) return navigation.closeDrawer();
-                    if (n.key === 'study') {
+                    if (n.key === 'study' || n.key === 'music') {
                       navigation.closeDrawer();
-                      return router.push('/study');
+                      return router.push(n.key === 'study' ? '/study' : '/music');
                     }
                     showToast(`${n.label} comes in a later step`);
                   }}

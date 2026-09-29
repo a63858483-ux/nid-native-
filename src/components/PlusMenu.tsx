@@ -9,13 +9,14 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } fr
 import { Glass } from './Glass';
 import { usePalette } from '@/lib/colors';
 
-export type PlusAction = 'camera' | 'photos' | 'stickers' | 'files' | 'model' | 'checklist' | 'bubble' | 'wallpaper';
+export type PlusAction = 'camera' | 'photos' | 'stickers' | 'files' | 'music' | 'model' | 'checklist' | 'bubble' | 'wallpaper';
 
 const ITEMS: { key: PlusAction; label: string; icon: SFSymbol; color: string }[] = [
   { key: 'camera', label: 'Camera', icon: 'camera.fill', color: '#5E5E62' },
   { key: 'photos', label: 'Photos', icon: 'photo.on.rectangle', color: '#FF7A93' },
   { key: 'stickers', label: 'Stickers', icon: 'face.smiling', color: '#9160EB' },
   { key: 'files', label: 'Files', icon: 'folder.fill', color: '#3B82F6' },
+  { key: 'music', label: 'Music', icon: 'music.note', color: '#FA2D48' },
   { key: 'model', label: 'Model', icon: 'slider.horizontal.3', color: '#3A3A3C' },
   { key: 'checklist', label: 'Checklist', icon: 'checklist', color: '#F2A516' },
   { key: 'bubble', label: 'Bubble', icon: 'paintpalette.fill', color: '#F58AA4' },

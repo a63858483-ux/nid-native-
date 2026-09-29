@@ -41,6 +41,19 @@ public class NidMusicModule: Module {
       return String(data: response.data, encoding: .utf8) ?? ""
     }
 
+    // Writes (e.g. PUT /v1/me/ratings/songs/{id} to favourite a song); body is a JSON string or "".
+    AsyncFunction("request") { (method: String, path: String, body: String) async throws -> String in
+      guard let url = URL(string: "https://api.music.apple.com" + path) else { throw NidMusicError.badPath }
+      var req = URLRequest(url: url)
+      req.httpMethod = method
+      if !body.isEmpty {
+        req.httpBody = body.data(using: .utf8)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      }
+      let response = try await MusicDataRequest(urlRequest: req).response()
+      return String(data: response.data, encoding: .utf8) ?? ""
+    }
+
     // kind: "songs" (ids = catalog song ids), "playlist", "album"; library = ids are library ids
     AsyncFunction("play") { (kind: String, ids: [String], library: Bool, start: Int) async throws in
       let player = SystemMusicPlayer.shared

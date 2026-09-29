@@ -40,6 +40,10 @@ function Shell() {
         <Stack.Screen name="sheet/select" options={sheet([0.5, 0.95])} />
         <Stack.Screen name="sheet/thought" options={sheet([0.5, 0.95])} />
         <Stack.Screen name="sheet/add" options={sheet([0.5, 0.95])} />
+        <Stack.Screen name="sheet/song" options={sheet([0.6, 0.95])} />
+        <Stack.Screen name="music/index" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="music/list" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="music/player" options={{ presentation: 'modal', contentStyle: { backgroundColor: '#222' } }} />
         <Stack.Screen name="study/index" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="study/book/[id]" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="study/essay/[id]" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />

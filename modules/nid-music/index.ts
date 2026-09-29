@@ -6,6 +6,7 @@ type NidMusicModule = {
   authorize(): Promise<'authorized' | 'denied' | 'restricted' | 'notDetermined' | 'unknown'>;
   authorizationStatus(): string;
   api(path: string): Promise<string>;
+  request?(method: string, path: string, body: string): Promise<string>;
   play(kind: 'songs' | 'playlist' | 'album', ids: string[], library: boolean, start: number): Promise<void>;
   resume(): Promise<void>;
   pause(): void;
