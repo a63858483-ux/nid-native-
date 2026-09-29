@@ -1,9 +1,20 @@
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextStyle } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { FadeInDown, FadeOutDown, LinearTransition, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown,
+  FadeOutDown,
+  LinearTransition,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+  ZoomIn,
+  ZoomOut,
+} from 'react-native-reanimated';
 
 import * as Haptics from 'expo-haptics';
 
@@ -99,23 +110,17 @@ export function Composer({
   });
   const uploading = pending.some((p) => p.uploading);
   const ready = (text.trim().length > 0 || pending.length > 0) && !uploading;
-  const show = useSharedValue(0);
   const rot = useSharedValue(0);
   const morph = useSharedValue(0);
 
   useEffect(() => {
-    show.value = withSpring(ready ? 1 : 0, SPRING);
-  }, [ready, show]);
-  useEffect(() => {
-    rot.value = withSpring(plusOpen ? 45 : 0, SPRING);
+    rot.set(withSpring(plusOpen ? 45 : 0, SPRING));
   }, [plusOpen, rot]);
   useEffect(() => {
     if (!sentTick) return;
-    morph.value = withSequence(withTiming(1, { duration: 70 }), withTiming(1, { duration: 110 }), withTiming(0, { duration: 120 }));
+    morph.set(withSequence(withTiming(1, { duration: 70 }), withTiming(1, { duration: 110 }), withTiming(0, { duration: 120 })));
   }, [sentTick, morph]);
 
-  const sendSt = useAnimatedStyle(() => ({ opacity: show.value, transform: [{ scale: 0.4 + 0.6 * show.value }] }));
-  const micSt = useAnimatedStyle(() => ({ opacity: 1 - show.value, transform: [{ scale: 1 - 0.4 * show.value }] }));
   const plusSt = useAnimatedStyle(() => ({ transform: [{ rotate: `${rot.value}deg` }] }));
   // iMessage: the typed text tints to the bubble colour in place, then leaves the field.
   const morphSt = useAnimatedStyle(() => ({ opacity: morph.value }));
@@ -255,16 +260,23 @@ export function Composer({
                 </Animated.View>
               </View>
               <View style={styles.action}>
-                <Animated.View style={[StyleSheet.absoluteFill, styles.center, micSt]} pointerEvents={ready ? 'none' : 'auto'}>
-                  <Pressable onPress={() => onTalk?.(true)} hitSlop={8} accessibilityLabel="Voice message" style={styles.center}>
-                    <SymbolView name="mic" size={19} tintColor={ink2} />
-                  </Pressable>
-                </Animated.View>
-                <Animated.View style={[StyleSheet.absoluteFill, sendSt]} pointerEvents={ready ? 'auto' : 'none'}>
-                  <Pressable onPress={submit} accessibilityLabel="Send" style={[styles.send, { backgroundColor: sendColor }]}>
-                    <SymbolView name="arrow.up" size={16} weight="bold" tintColor={sendInk} />
-                  </Pressable>
-                </Animated.View>
+                {ready ? (
+                  <Animated.View key="send" entering={ZoomIn.springify().damping(16)} exiting={ZoomOut.duration(120)} style={StyleSheet.absoluteFill}>
+                    <Pressable onPress={submit} accessibilityLabel="Send" style={[styles.send, { backgroundColor: sendColor }]}>
+                      <SymbolView name="arrow.up" size={16} weight="bold" tintColor={sendInk} />
+                    </Pressable>
+                  </Animated.View>
+                ) : uploading ? (
+                  <View key="wait" style={[StyleSheet.absoluteFill, styles.center]}>
+                    <ActivityIndicator size="small" color={ink2} />
+                  </View>
+                ) : (
+                  <Animated.View key="mic" entering={ZoomIn.duration(140)} exiting={ZoomOut.duration(120)} style={[StyleSheet.absoluteFill, styles.center]}>
+                    <Pressable onPress={() => onTalk?.(true)} hitSlop={8} accessibilityLabel="Voice message" style={styles.center}>
+                      <SymbolView name="mic" size={19} tintColor={ink2} />
+                    </Pressable>
+                  </Animated.View>
+                )}
               </View>
             </View>
           </Glass>

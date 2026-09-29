@@ -3,13 +3,12 @@ import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, Share, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { Easing, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { PhotoOpen } from './Bubble';
-import { shareFile } from '@/lib/open';
 
 const OPEN = { duration: 340, easing: Easing.out(Easing.cubic) };
 const CLOSE = { duration: 280, easing: Easing.inOut(Easing.cubic) };
@@ -130,7 +129,7 @@ export function PhotoViewer({ photo, onClosed }: { photo: PhotoOpen; onClosed: (
   const share = async () => {
     Haptics.selectionAsync();
     try {
-      await shareFile(photo.uri, photo.name, true);
+      await Share.share({ url: photo.uri });
     } catch {
       // the share sheet was dismissed or the download failed; nothing to undo
     }
@@ -142,7 +141,7 @@ export function PhotoViewer({ photo, onClosed }: { photo: PhotoOpen; onClosed: (
       <GestureDetector gesture={gesture}>
         <View style={StyleSheet.absoluteFill}>
           <Animated.View style={[styles.frame, frame]}>
-            <Image source={{ uri: photo.uri, headers: photo.headers }} style={StyleSheet.absoluteFill} contentFit="cover" />
+            <Image source={{ uri: photo.uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
           </Animated.View>
         </View>
       </GestureDetector>

@@ -2,19 +2,19 @@ import MaskedView from '@react-native-masked-view/masked-view';
 import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
-import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { bubblePath, TAIL_W } from './bubble-path';
 import { RichText } from './RichText';
 import * as api from '@/lib/api';
-import { type Attachment, attachmentUrl, authHeaders } from '@/lib/api';
+import { type Attachment, attachmentUrl } from '@/lib/api';
 import { API_BASE, FROSTED_HIS_BUBBLE } from '@/lib/config';
 import { stickerUrl, useStickers } from '@/lib/stickers';
 import type { Media } from '@/lib/text';
 import { inkOn, usePalette } from '@/lib/colors';
-import { openPublic, shareFile } from '@/lib/open';
+import { download, openPublic, shareFile } from '@/lib/open';
 
 // `boxed`: the parent already caps the width (Decorated), so don't cap again.
 type Props = { role: 'user' | 'assistant'; text: string; tail: boolean; myColor: string; big?: boolean; boxed?: boolean };
@@ -93,24 +93,45 @@ export function StickerBubble({ id, mine }: { id: string; mine: boolean }) {
 }
 
 // Image paths he pastes into text (camera shots, screenshots, album photos).
-export type PhotoOpen = { uri: string; headers?: Record<string, string>; name: string; ratio: number; rect: { x: number; y: number; w: number; h: number } };
+export type PhotoOpen = { uri: string; name: string; ratio: number; rect: { x: number; y: number; w: number; h: number } };
 
 // A photo in the thread; tapping hands its place on screen to the full-screen viewer.
+// The file is fetched with the login token into the cache first; the image itself then loads
+// from disk (release builds did not draw images that needed request headers).
 function Photo({ uri, name, mine, hidden, onOpen }: { uri: string; name: string; mine: boolean; hidden?: boolean; onOpen?: (p: PhotoOpen) => void }) {
   const [ratio, setRatio] = useState(1.3);
+  const [local, setLocal] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
   const ref = useRef<View>(null);
   const h = Math.max(120, Math.min(320, MAX_IMG / ratio));
-  const headers = authHeaders();
-  const open = () => ref.current?.measureInWindow((x, y, w, hh) => onOpen?.({ uri, headers, name, ratio, rect: { x, y, w, h: hh } }));
+  useEffect(() => {
+    let live = true;
+    download(uri, name, true)
+      .then((f) => live && setLocal(f.uri))
+      .catch(() => live && setFailed(true));
+    return () => {
+      live = false;
+    };
+  }, [uri, name]);
+  const open = () => ref.current?.measureInWindow((x, y, w, hh) => onOpen?.({ uri: local ?? uri, name, ratio, rect: { x, y, w, h: hh } }));
   return (
-    <Pressable ref={ref} onPress={onOpen ? open : undefined} style={[styles.photo, mine ? styles.mine : styles.his, { width: MAX_IMG, height: h, opacity: hidden ? 0 : 1 }]}>
-      <Image
-        source={{ uri, headers }}
-        style={StyleSheet.absoluteFill}
-        contentFit="cover"
-        transition={180}
-        onLoad={(e) => e.source?.width && e.source?.height && setRatio(e.source.width / e.source.height)}
-      />
+    <Pressable
+      ref={ref}
+      onPress={onOpen && local ? open : undefined}
+      style={[styles.photo, mine ? styles.mine : styles.his, { width: MAX_IMG, height: h, opacity: hidden ? 0 : 1 }]}>
+      {local ? (
+        <Image
+          source={{ uri: local }}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          transition={180}
+          onLoad={(e) => e.source?.width && e.source?.height && setRatio(e.source.width / e.source.height)}
+        />
+      ) : (
+        <View style={[StyleSheet.absoluteFill, styles.center]}>
+          {failed ? <SymbolView name="photo.badge.exclamationmark" size={22} tintColor="rgba(255,255,255,0.6)" /> : <ActivityIndicator color="rgba(255,255,255,0.7)" />}
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -190,6 +211,7 @@ const styles = StyleSheet.create({
   pad: { paddingHorizontal: 14, paddingTop: 7, paddingBottom: 8 },
   text: { fontSize: 17, lineHeight: 22 },
   photo: { borderRadius: 18, overflow: 'hidden', backgroundColor: 'rgba(120,120,128,0.18)', borderCurve: 'continuous' },
+  center: { alignItems: 'center', justifyContent: 'center' },
   file: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, paddingRight: 16, borderRadius: 18, minWidth: 200, maxWidth: '76%', borderCurve: 'continuous' },
   fileIcon: { width: 34, height: 42, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
   fileName: { fontSize: 15, fontWeight: '600' },
