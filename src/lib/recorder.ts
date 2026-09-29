@@ -24,18 +24,35 @@ export function useVoiceRecorder(onDone: (rec: Recording, how: 'send' | 'text') 
   const level = Math.max(0, Math.min(1, ((state.metering ?? -60) + 50) / 50));
   const hold: HoldState = holding ? { zone: holding.zone, seconds: (state.durationMillis || 0) / 1000, level } : null;
 
+  // `down` flips the instant the finger lands or lifts; starting the recorder is async, so the
+  // release can arrive before recording has begun. The end waits for the start to settle.
+  const down = useRef(false);
+  const starting = useRef<Promise<boolean> | null>(null);
+
+  const start = useCallback(async (): Promise<boolean> => {
+    const perm = await requestRecordingPermissionsAsync();
+    if (!perm.granted) {
+      onDenied();
+      return false;
+    }
+    if (!down.current) return false; // released while the permission prompt was up
+    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+    await recorder.prepareToRecordAsync();
+    if (!down.current) return false;
+    recorder.record();
+    return true;
+  }, [recorder, onDenied]);
+
   const onHold = useCallback(
     async (e: HoldEvent) => {
       if (e.phase === 'start') {
-        const perm = await requestRecordingPermissionsAsync();
-        if (!perm.granted) return onDenied();
+        if (down.current) return;
+        down.current = true;
         zone.current = null;
         active.current = true;
         setHolding({ zone: null });
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-        await recorder.prepareToRecordAsync();
-        recorder.record();
+        starting.current = start().catch(() => false);
         return;
       }
       if (!active.current) return;
@@ -48,24 +65,32 @@ export function useVoiceRecorder(onDone: (rec: Recording, how: 'send' | 'text') 
         }
         return;
       }
+      // release
+      down.current = false;
       active.current = false;
       const how = zone.current;
       setHolding(null);
+      const recording = await (starting.current ?? Promise.resolve(false));
+      starting.current = null;
+      if (!recording) {
+        await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {});
+        if (how !== 'cancel') onTooShort();
+        return;
+      }
       const seconds = (recorder.getStatus().durationMillis || 0) / 1000;
       try {
         await recorder.stop();
       } catch {
-        // a tap shorter than the recorder's start-up: nothing was recorded
         return;
       } finally {
-        await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+        await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {});
       }
       const uri = recorder.uri;
       if (how === 'cancel' || !uri) return;
       if (seconds < MIN_SECONDS) return onTooShort();
       onDone({ uri, seconds }, how === 'text' ? 'text' : 'send');
     },
-    [recorder, W, H, onDone, onTooShort, onDenied],
+    [recorder, W, H, onDone, onTooShort, start],
   );
 
   return { hold, onHold };

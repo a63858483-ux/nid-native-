@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -290,22 +290,29 @@ export function Composer({
 // the finger in screen coordinates and ends on release, so the screen can pick the zone.
 function HoldBar({ onHold }: { onHold?: (e: HoldEvent) => void }) {
   const [down, setDown] = useState(false);
-  const gesture = Gesture.Pan()
-    .minDistance(0)
-    .runOnJS(true)
-    .onBegin((e) => {
-      setDown(true);
-      onHold?.({ phase: 'start', x: e.absoluteX, y: e.absoluteY });
-    })
-    .onUpdate((e) => onHold?.({ phase: 'move', x: e.absoluteX, y: e.absoluteY }))
-    .onFinalize((e) => {
-      setDown(false);
-      onHold?.({ phase: 'end', x: e.absoluteX, y: e.absoluteY });
-    });
+  // One gesture for the bar's life (rebuilding it mid-hold would drop the release);
+  // onHold comes from a useCallback upstream, so it only changes when its inputs do.
+  const gesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .minDistance(0)
+        .shouldCancelWhenOutside(false)
+        .runOnJS(true)
+        .onBegin((e) => {
+          setDown(true);
+          onHold?.({ phase: 'start', x: e.absoluteX, y: e.absoluteY });
+        })
+        .onUpdate((e) => onHold?.({ phase: 'move', x: e.absoluteX, y: e.absoluteY }))
+        .onFinalize((e) => {
+          setDown(false);
+          onHold?.({ phase: 'end', x: e.absoluteX, y: e.absoluteY });
+        }),
+    [onHold],
+  );
   return (
     <GestureDetector gesture={gesture}>
       <View style={[styles.talk, down && styles.talkDown]}>
-        <Text style={styles.talkText}>Hold to Talk</Text>
+        <Text style={styles.talkText}>{down ? 'Release to Send' : 'Hold to Talk'}</Text>
       </View>
     </GestureDetector>
   );
