@@ -66,28 +66,29 @@ async function noteText(href,doc){
   if(hash)target=doc.getElementById(hash);
   if(!target&&hash&&file){
     const item=book.spine.spineItems.find(s=>s.href&&(s.href===file||s.href.endsWith('/'+file)||file.endsWith('/'+s.href)));
-    if(item){const d=await item.load(book.load.bind(book));target=(d.ownerDocument||d).getElementById?(d.ownerDocument||d).getElementById(hash):d.querySelector('#'+CSS.escape(hash));item.unload()}
+    if(item){try{const d=await book.load(item.url);const docx=d.getElementById?d:(d.ownerDocument||d);target=docx.getElementById(hash)}catch(e){}}
   }
   if(!target)return '';
   const box=target.closest('aside,li,p,div')||target;
-  return (box.textContent||'').replace(/\\s+/g,' ').trim();
+  return (box.textContent||'').replace(/\\s+/g,' ').trim().replace(/^[\\[(（]?[0-9*＊†]+[\\])）]?\\s*/,'');
 }
 
 let tx=0,ty=0,tt=0;
 function hookContents(contents){
   const doc=contents.document;
   doc.addEventListener('selectionchange',()=>{const s=doc.getSelection();if(!s||s.isCollapsed)post('select',{text:''})});
-  doc.querySelectorAll('a[href]').forEach(a=>{
-    a.addEventListener('click',async(e)=>{
-      const href=a.getAttribute('href')||'';
-      e.preventDefault();e.stopPropagation();
-      if(/^https?:/i.test(href)){post('link',{url:href});return}
-      const noteish=/noteref|footnote|endnote/i.test((a.getAttribute('epub:type')||'')+' '+(a.getAttribute('role')||'')+' '+(a.className||''))||/^\\s*[\\[(（]?[0-9*＊†]+[\\])）]?\\s*$/.test(a.textContent||'');
-      const full=href.startsWith('#')?href:resolveHref(contents,href);
-      if(noteish){const t=await noteText(href.startsWith('#')?href:full,doc);if(t){post('note',{text:t,label:(a.textContent||'').trim()});return}}
-      try{rend.display(href.startsWith('#')?(book.spine.get(contents.sectionIndex).href+href):full)}catch(err){}
-    });
-  });
+  // Capture phase on the document: runs before epub.js's own onclick on the link, and stops it.
+  doc.addEventListener('click',async(e)=>{
+    const a=e.target&&e.target.closest?e.target.closest('a[href]'):null;
+    if(!a)return;
+    const href=a.getAttribute('href')||'';
+    e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+    if(/^https?:/i.test(href)){post('link',{url:href});return}
+    const noteish=/noteref|footnote|endnote/i.test((a.getAttribute('epub:type')||'')+' '+(a.getAttribute('role')||'')+' '+(a.className||''))||/^\\s*[\\[(（]?[0-9*＊†]+[\\])）]?\\s*$/.test(a.textContent||'');
+    const full=href.startsWith('#')?href:resolveHref(contents,href);
+    if(noteish){const t=await noteText(href.startsWith('#')?href:full,doc);if(t){post('note',{text:t,label:(a.textContent||'').trim()});return}}
+    try{rend.display(href.startsWith('#')?(book.spine.get(contents.sectionIndex).href+href):full)}catch(err){}
+  },true);
   placeQuotes(contents);
 }
 
@@ -111,6 +112,8 @@ window.nidOpen=async(url,token,cfi,t,list)=>{
     if(!res.ok){post('error',{m:'HTTP '+res.status});return}
     book=ePub(await res.arrayBuffer());
     rend=book.renderTo('v',{width:'100%',height:'100%',flow:'paginated',spread:'none',allowScriptedContent:false});
+    // Gentle defaults; the book's own stylesheet still wins wherever it says otherwise.
+    rend.themes.default({body:{'line-height':'1.8'},p:{'text-align':'justify'}});
     rend.hooks.content.register(hookContents);
     rend.on('touchstart',onTouchStart);rend.on('touchend',onTouchEnd);
     rend.on('selected',(cfi,contents)=>{
