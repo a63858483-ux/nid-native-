@@ -1,4 +1,5 @@
 import { File } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import { authHeaders, call } from './api';
 import { API_BASE } from './config';
@@ -92,11 +93,22 @@ export async function uploadBook(file: { uri: string; name: string; mime: string
     const text = await new File(file.uri).text();
     return call('/api/books/upload', json('POST', { title: file.name.replace(/\.txt$/i, ''), content: text }));
   }
-  const form = new FormData();
-  form.append('file', { uri: file.uri, name: file.name, type: file.mime } as unknown as Blob);
-  const res = await fetch(`${API_BASE}/api/books/upload-file`, { method: 'POST', headers: authHeaders(), body: form });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.detail || `upload ${res.status}`);
+  // The global fetch here is expo/fetch, which can't send RN-style { uri } form parts; the native uploader can.
+  const res = await FileSystem.uploadAsync(`${API_BASE}/api/books/upload-file`, file.uri, {
+    httpMethod: 'POST',
+    uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+    fieldName: 'file',
+    mimeType: file.mime,
+    headers: authHeaders(),
+  });
+  const body = (() => {
+    try {
+      return JSON.parse(res.body);
+    } catch {
+      return {};
+    }
+  })();
+  if (res.status < 200 || res.status >= 300) throw new Error(body.detail || `upload ${res.status}`);
   return body;
 }
 
@@ -104,5 +116,11 @@ export async function uploadBook(file: { uri: string; name: string; mime: string
 export function bjDate(ms: number) {
   const d = new Date(ms + 8 * 3600_000);
   const p = (n: number) => String(n).padStart(2, '0');
-  return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, d: d.getUTCDate(), dots: `${d.getUTCFullYear()} · ${p(d.getUTCMonth() + 1)} · ${p(d.getUTCDate())}`, hm: `${p(d.getUTCHours())}:${p(d.getUTCMinutes())}` };
+  return {
+    y: d.getUTCFullYear(),
+    m: d.getUTCMonth() + 1,
+    d: d.getUTCDate(),
+    dots: `${d.getUTCFullYear()} · ${p(d.getUTCMonth() + 1)} · ${p(d.getUTCDate())}`,
+    hm: `${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`,
+  };
 }
