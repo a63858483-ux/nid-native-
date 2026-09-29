@@ -39,8 +39,14 @@ function textRange(doc,quote){
 function drawMark(m){
   if(!rend||!m.cfi)return;
   try{rend.annotations.remove(m.cfi,'highlight')}catch(e){}
-  rend.annotations.highlight(m.cfi,{id:m.id},()=>post('mark',{id:m.id}),'nid-hl',{fill:m.color,'fill-opacity':'0.38','mix-blend-mode':'multiply'});
+  rend.annotations.highlight(m.cfi,{id:m.id},()=>post('mark',Object.assign({id:m.id},markRect(m.cfi))),'nid-hl',{fill:m.color,'fill-opacity':'0.38','mix-blend-mode':'multiply'});
 }
+// Where a highlight sits on screen, so the app can float its Edit Note menu over it.
+function markRect(cfi){
+  try{const r=rend.getRange(cfi);const rs=r.getClientRects();const f=r.startContainer.ownerDocument.defaultView.frameElement.getBoundingClientRect();
+    const a=rs[0],b=rs[rs.length-1];return {x:f.left+a.left,y:f.top+a.top,bottom:f.top+b.bottom}}catch(e){return {}}
+}
+window.nidUnmark=(id)=>{const m=marks[id];if(m&&m.cfi){try{rend.annotations.remove(m.cfi,'highlight')}catch(e){}}delete marks[id]};
 window.nidMarks=(list)=>{
   list.forEach(m=>{marks[m.id]=m;if(m.cfi)drawMark(m)});
   pendingQuotes=list.filter(m=>!m.cfi&&m.quote);

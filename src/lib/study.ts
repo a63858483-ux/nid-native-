@@ -68,6 +68,8 @@ export const bookFileUrl = (b: Pick<Book, 'id' | 'file_url'>) => API_BASE + (b.f
 export const coverUrl = (b: Pick<Book, 'cover_url'>) => (b.cover_url ? API_BASE + b.cover_url : null);
 
 export const notes = async (bookId: number) => ((await call(`/api/books/${bookId}/annotations`)) as { items: Note[] }).items;
+export const editNote = (bookId: number, id: number, text: string) => call(`/api/books/${bookId}/annotations/${id}`, json('PATCH', { text })) as Promise<Note>;
+export const deleteNote = (bookId: number, id: number) => call(`/api/books/${bookId}/annotations/${id}`, { method: 'DELETE' });
 export const addNote = (bookId: number, n: { quote: string; text?: string | null; page_no?: number; cfi?: string; color?: string; reply_to_id?: number }) =>
   call(`/api/books/${bookId}/annotations`, json('POST', n)) as Promise<Note>;
 

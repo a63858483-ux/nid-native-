@@ -6,13 +6,13 @@ import { StatusBar } from 'expo-status-bar';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeOut, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { WebView as WebViewType, WebViewMessageEvent } from 'react-native-webview';
 
 import { NidPdfView, type PdfMark, type PdfRef } from '../../../../modules/nid-pdf';
-import { HER_MARK, HIS_MARK, NoteThread } from '@/components/study/NoteThread';
+import { HER_MARK, HIS_MARK, NoteEditor, NoteThread, threadOf } from '@/components/study/NoteThread';
 import { readerHtml } from '@/components/study/readerHtml';
 import { authHeaders } from '@/lib/api';
 import { API_BASE } from '@/lib/config';
@@ -97,6 +97,10 @@ export default function Reader() {
   const [notes, setNotes] = useState<S.Note[]>([]);
   const [sel, setSel] = useState<{ text: string; cfi?: string; page?: number } | null>(null);
   const [thread, setThread] = useState<{ quote: string; root: S.Note | null; cfi?: string; page?: number } | null>(null);
+  const [editor, setEditor] = useState<{ quote: string; root: S.Note | null; at: number; cfi?: string; page?: number } | null>(null);
+  const [markMenu, setMarkMenu] = useState<{ root: S.Note; x: number; y: number; bottom: number } | null>(null);
+  const tapTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const { width: screenW } = useWindowDimensions();
   const [footnote, setFootnote] = useState<{ label: string; text: string } | null>(null);
   const [q, setQ] = useState('');
   const [hits, setHits] = useState<Hit[] | null>(null);
@@ -180,8 +184,12 @@ export default function Reader() {
         setSel(m.text ? { text: String(m.text), cfi: m.cfi as string } : null);
         break;
       case 'mark': {
+        // A tap on a highlight also reaches the page as a plain tap; that one is dropped.
+        clearTimeout(tapTimer.current);
         const root = notes.find((n) => n.id === m.id);
-        if (root) openThread(root);
+        if (!root) break;
+        if (typeof m.y === 'number') setMarkMenu({ root, x: Number(m.x), y: Number(m.y), bottom: Number(m.bottom) });
+        else openThread(root);
         break;
       }
       case 'note':
@@ -191,9 +199,13 @@ export default function Reader() {
         WebBrowser.openBrowserAsync(String(m.url));
         break;
       case 'tap':
-        setPanel(null);
-        setFootnote(null);
-        setChrome((c) => !c);
+        clearTimeout(tapTimer.current);
+        tapTimer.current = setTimeout(() => {
+          if (markMenu) return setMarkMenu(null);
+          setPanel(null);
+          setFootnote(null);
+          setChrome((c) => !c);
+        }, 220);
         break;
       case 'results':
         setHits((m.items as { cfi: string; excerpt: string }[]).map((h) => ({ cfi: h.cfi, excerpt: h.excerpt })));
@@ -214,6 +226,41 @@ export default function Reader() {
     }
   };
 
+  const saveEditor = async (text: string) => {
+    if (!editor) return;
+    try {
+      if (editor.root) {
+        const n = await S.editNote(bookId, editor.root.id, text);
+        setNotes((x) => x.map((y) => (y.id === n.id ? n : y)));
+      } else {
+        const n = await S.addNote(bookId, { quote: editor.quote, text: text || null, cfi: editor.cfi, page_no: editor.page, color: HER_MARK });
+        setNotes((x) => [...x, n]);
+        if (!isPdf) js(`window.nidMarks(${JSON.stringify(marksFor([n]))})`);
+      }
+      setEditor(null);
+    } catch {
+      showToast("Couldn't save the note");
+    }
+  };
+  const removeMark = (root: S.Note) =>
+    Alert.alert('Remove this highlight?', root.text ? 'Its note goes with it.' : undefined, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await S.deleteNote(bookId, root.id);
+            const gone = new Set([root.id, ...threadOf(root, notes).map((n) => n.id)]);
+            setNotes((x) => x.filter((n) => !gone.has(n.id)));
+            if (!isPdf) js(`window.nidUnmark(${root.id})`);
+          } catch {
+            showToast("Couldn't remove it");
+          }
+        },
+      },
+    ]);
+
   const openThread = (root: S.Note) => {
     setPanel(null);
     setThread({ quote: root.quote, root, cfi: root.cfi ?? undefined, page: root.page_no ?? undefined });
@@ -233,7 +280,7 @@ export default function Reader() {
     const cfi = sel.cfi;
     setSel(null);
     if (withNote) {
-      setThread({ quote, root: null, cfi, page });
+      setEditor({ quote, root: null, at: Date.now(), cfi, page });
       return;
     }
     try {
@@ -517,8 +564,66 @@ export default function Reader() {
         </Sheet>
       )}
 
+      {markMenu && (
+        <MarkMenu
+          menu={markMenu}
+          screenW={screenW}
+          top={insets.top + 8}
+          items={
+            markMenu.root.author === 'ta'
+              ? [
+                  { label: 'Edit Note', on: () => setEditor({ quote: markMenu.root.quote, root: markMenu.root, at: markMenu.root.created_at }) },
+                  ...(threadOf(markMenu.root, notes).length ? [{ label: 'Replies', on: () => openThread(markMenu.root) }] : []),
+                  { label: 'Remove…', on: () => removeMark(markMenu.root) },
+                ]
+              : [{ label: 'Reply', on: () => openThread(markMenu.root) }]
+          }
+          onClose={() => setMarkMenu(null)}
+        />
+      )}
+      {editor && <NoteEditor quote={editor.quote} initial={editor.root?.text ?? ''} at={editor.at} onSave={saveEditor} onClose={() => setEditor(null)} bottom={insets.bottom} />}
       {thread && <NoteThread quote={thread.quote} root={thread.root} all={notes} onSend={sendNote} onClose={() => setThread(null)} bottom={insets.bottom + 10} />}
     </View>
+  );
+}
+
+// The iOS edit-menu look, floated over a highlight she tapped: Edit Note | Remove… (Apple Books).
+function MarkMenu({
+  menu,
+  items,
+  screenW,
+  top,
+  onClose,
+}: {
+  menu: { x: number; y: number; bottom: number };
+  items: { label: string; on: () => void }[];
+  screenW: number;
+  top: number;
+  onClose: () => void;
+}) {
+  const [w, setW] = useState(0);
+  const above = menu.y - 54 > top;
+  const y = above ? menu.y - 54 : menu.bottom + 10;
+  const left = Math.max(12, Math.min(screenW - 12 - w, menu.x - 20));
+  return (
+    <>
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+      <Animated.View entering={FadeIn.duration(140)} onLayout={(e) => setW(e.nativeEvent.layout.width)} style={[styles.mm, { top: y, left, opacity: w ? 1 : 0 }]}>
+        <BlurView tint="systemChromeMaterialLight" intensity={95} style={StyleSheet.absoluteFill} />
+        {items.map((it, i) => (
+          <Pressable
+            key={it.label}
+            onPress={() => {
+              Haptics.selectionAsync();
+              onClose();
+              it.on();
+            }}
+            style={({ pressed }) => [styles.mmItem, i > 0 && styles.mmLine, pressed && { backgroundColor: 'rgba(0,0,0,0.06)' }]}>
+            <Text style={styles.mmText}>{it.label}</Text>
+          </Pressable>
+        ))}
+      </Animated.View>
+    </>
   );
 }
 
@@ -575,6 +680,20 @@ const styles = StyleSheet.create({
   },
   menuDark: { backgroundColor: '#2c2c2e' },
   menuText: { fontSize: 15, color: '#111' },
+  mm: {
+    position: 'absolute',
+    flexDirection: 'row',
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  mmItem: { paddingHorizontal: 16, justifyContent: 'center' },
+  mmLine: { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: 'rgba(60,60,67,0.3)' },
+  mmText: { fontSize: 15, color: '#111' },
   selBar: {
     position: 'absolute',
     alignSelf: 'center',

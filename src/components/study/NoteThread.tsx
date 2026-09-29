@@ -132,6 +132,93 @@ const styles = StyleSheet.create({
   bubText: { fontSize: 15, lineHeight: 21, color: '#111' },
   who: { fontSize: 11, color: '#999', marginTop: 2, marginHorizontal: 4 },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
-  input: { flex: 1, minHeight: 36, maxHeight: 110, borderRadius: 18, borderWidth: 1, borderColor: '#ddd', backgroundColor: '#fff', paddingHorizontal: 14, paddingTop: 8, paddingBottom: 8, fontSize: 15, color: '#222' },
+  input: {
+    flex: 1,
+    minHeight: 36,
+    maxHeight: 110,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 8,
+    fontSize: 15,
+    color: '#222',
+  },
   send: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#1982fc', alignItems: 'center', justifyContent: 'center', marginBottom: 1 },
+  editor: {
+    marginTop: 'auto',
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    minHeight: 260,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+  },
+  edHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  edTitle: { fontSize: 17, fontWeight: '700', color: '#111' },
+  edTime: { fontWeight: '400', color: '#8e8e93' },
+  edOk: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#1c1c1e', alignItems: 'center', justifyContent: 'center' },
+  edQuote: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  edBar: { width: 3, borderRadius: 2, backgroundColor: HER_MARK },
+  edQuoteText: { flex: 1, fontSize: 13, lineHeight: 19, color: '#333' },
+  edInput: { fontSize: 17, lineHeight: 24, color: '#111', marginTop: 14, minHeight: 90, textAlignVertical: 'top' },
 });
+
+// Apple Books' note sheet: "Note 17:30", the quote under a yellow bar, the note itself, ✓ to keep it.
+export function NoteEditor({
+  quote,
+  initial,
+  at,
+  onSave,
+  onClose,
+  bottom,
+}: {
+  quote: string;
+  initial: string;
+  at: number;
+  onSave: (text: string) => Promise<void>;
+  onClose: () => void;
+  bottom: number;
+}) {
+  const [text, setText] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  const d = new Date(at + 8 * 3600_000);
+  const hm = `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+  const save = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await onSave(text.trim());
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <KeyboardAvoidingView behavior="padding" style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.12)' }]} onPress={onClose} accessibilityLabel="Close note" />
+      <Animated.View entering={FadeInDown.duration(220)} exiting={FadeOutDown.duration(160)} style={[styles.editor, { paddingBottom: 16 + bottom }]}>
+        <View style={styles.edHead}>
+          <Text style={styles.edTitle}>
+            Note <Text style={styles.edTime}>{hm}</Text>
+          </Text>
+          <Pressable onPress={save} style={styles.edOk} accessibilityLabel="Done" hitSlop={8}>
+            <SymbolView name="checkmark" size={17} weight="semibold" tintColor="#fff" />
+          </Pressable>
+        </View>
+        <View style={styles.edQuote}>
+          <View style={styles.edBar} />
+          <Text style={styles.edQuoteText} numberOfLines={3}>
+            {quote}
+          </Text>
+        </View>
+        <TextInput value={text} onChangeText={setText} autoFocus multiline placeholder="Add a note" placeholderTextColor="#aaa" style={styles.edInput} />
+      </Animated.View>
+    </KeyboardAvoidingView>
+  );
+}
