@@ -232,7 +232,7 @@ export default function MindPage() {
   const unlock = () => {
     Alert.prompt(
       'Locked',
-      'Same password as the album.',
+      undefined,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Unlock', onPress: (code?: string) => code === '902627' && setUnlocked(true) },
@@ -337,7 +337,7 @@ export default function MindPage() {
       {portraits === null ? (
         <ActivityIndicator style={{ marginTop: 40 }} />
       ) : !portraits.length ? (
-        <Text style={styles.empty}>Nothing yet — steady little things he notices about you settle here on their own.</Text>
+        <Text style={styles.empty}>Nothing yet.</Text>
       ) : (
         <View style={[styles.card, { marginTop: 14, paddingHorizontal: 17, paddingTop: 6, paddingBottom: 12, borderRadius: 24 }]}>
           {portraitGroups.map((g) => (
@@ -350,7 +350,7 @@ export default function MindPage() {
               {g.aspect === '亲密' && !unlocked ? (
                 <Pressable onPress={unlock} style={styles.lockRow}>
                   <SymbolView name="lock.fill" size={13} tintColor={MUTED} />
-                  <Text style={styles.lockText}>Locked — same password as the album</Text>
+                  <Text style={styles.lockText}>Locked</Text>
                 </Pressable>
               ) : (
                 g.items.map((p) => (
@@ -400,8 +400,8 @@ export default function MindPage() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: GROUND },
   hidden: { opacity: 0 },
-  head: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingBottom: 6 },
-  back: { width: 32, height: 40, alignItems: 'center', justifyContent: 'center' },
+  head: { alignItems: 'center', justifyContent: 'center', minHeight: 44, paddingHorizontal: 56, paddingBottom: 6 },
+  back: { position: 'absolute', left: 14, top: 0, bottom: 0, width: 32, alignItems: 'center', justifyContent: 'center' },
   title: { fontFamily: 'PlayfairDisplay_800ExtraBold_Italic', fontSize: 34, color: INK },
   search: {
     flexDirection: 'row',

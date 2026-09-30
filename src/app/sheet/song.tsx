@@ -22,14 +22,24 @@ export default function SongSheet() {
       .then(setRecent)
       .catch((e) => {
         setRecent([]);
-        setProblem(e instanceof Error && e.message === 'needs-build' ? 'Update Nid from TestFlight to see what you played.' : 'Nid can’t see your music yet. Turn on Media & Apple Music for Nid douillet in Settings. You can still search.');
+        setProblem(
+          e instanceof Error && e.message === 'needs-build'
+            ? 'Update Nid from TestFlight to see what you played.'
+            : 'Nid can’t see your music yet. Turn on Media & Apple Music for Nid douillet in Settings. You can still search.',
+        );
       });
   }, []);
   const onQ = (s: string) => {
     setQ(s);
     if (timer.current) clearTimeout(timer.current);
     if (!s.trim()) return setHits(null);
-    timer.current = setTimeout(() => M.searchSongs(s.trim()).then(setHits).catch(() => setHits([])), 350);
+    timer.current = setTimeout(
+      () =>
+        M.searchSongs(s.trim())
+          .then(setHits)
+          .catch(() => setHits([])),
+      350,
+    );
   };
   const pick = (t: M.Track) => {
     Haptics.selectionAsync();
@@ -42,7 +52,15 @@ export default function SongSheet() {
       <SheetHeader title={q.trim() ? 'Search' : 'Share Recently Played'} />
       <View style={[styles.search, { backgroundColor: pal.fill }]}>
         <SymbolView name="magnifyingglass" size={15} tintColor={pal.ink2} />
-        <TextInput value={q} onChangeText={onQ} placeholder="Search Apple Music" placeholderTextColor={pal.ink2} style={[styles.input, { color: pal.ink }]} returnKeyType="search" autoCorrect={false} />
+        <TextInput
+          value={q}
+          onChangeText={onQ}
+          placeholder="Search Apple Music"
+          placeholderTextColor={pal.ink2}
+          style={[styles.input, { color: pal.ink }]}
+          returnKeyType="search"
+          autoCorrect={false}
+        />
       </View>
       {!!problem && !q.trim() && <Text style={[styles.note, { color: pal.ink2 }]}>{problem}</Text>}
       {list === null && <ActivityIndicator style={{ marginTop: 30 }} />}

@@ -3,7 +3,7 @@ import * as Haptics from 'expo-haptics';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Bubble } from '@/components/Bubble';
-import { Footnote, Group } from '@/components/Group';
+import { Group } from '@/components/Group';
 import { SheetHeader } from '@/components/SheetHeader';
 import { usePalette } from '@/lib/colors';
 import { useApp } from '@/state/app';
@@ -50,7 +50,6 @@ export default function BubbleSheet() {
           </Host>
         </View>
       </Group>
-      <Footnote>His bubble stays frosted gray and lets the wallpaper through.</Footnote>
     </ScrollView>
   );
 }

@@ -150,7 +150,6 @@ export default function Inner() {
           <View style={styles.card}>
             <View style={styles.stateHead}>
               <Text style={styles.stateHeadT}>◉ RIGHT NOW</Text>
-              <Text style={styles.stateHeadS}>~10 min steps</Text>
             </View>
             <View style={styles.stateMain}>
               <Text style={styles.big} numberOfLines={1}>
@@ -197,7 +196,6 @@ export default function Inner() {
               );
             })}
           </View>
-          <Text style={styles.foot}>Thoughts hang under the pull that lit them. A flicker fades on its own; an obsession pushes that pull higher until it burns off.</Text>
         </>
       )}
     </ScrollView>
@@ -294,8 +292,8 @@ export default function Inner() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: GROUND },
   hidden: { opacity: 0 },
-  head: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingBottom: 2 },
-  back: { width: 32, height: 40, alignItems: 'center', justifyContent: 'center' },
+  head: { alignItems: 'center', justifyContent: 'center', minHeight: 44, paddingHorizontal: 56, paddingBottom: 2 },
+  back: { position: 'absolute', left: 14, top: 0, bottom: 0, width: 32, alignItems: 'center', justifyContent: 'center' },
   title: { fontFamily: 'PlayfairDisplay_800ExtraBold_Italic', fontSize: 30, color: INK },
   titleBig: { fontSize: 38 },
   who: {
@@ -314,11 +312,9 @@ const styles = StyleSheet.create({
   whoName: { fontSize: 14.5, fontWeight: '600', color: INK },
   card: { marginHorizontal: 14, marginBottom: 10, backgroundColor: '#fff', borderRadius: 24, overflow: 'hidden', paddingVertical: 4 },
   empty: { textAlign: 'center', color: MUTED, fontSize: 14, marginTop: 50 },
-  foot: { fontSize: 13.5, lineHeight: 20, color: MUTED, marginHorizontal: 22, marginTop: -2 },
   // state card
   stateHead: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 14 },
   stateHeadT: { fontSize: 11.5, fontWeight: '700', letterSpacing: 0.8, color: MUTED },
-  stateHeadS: { fontSize: 11.5, color: MUTED },
   stateMain: { flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingHorizontal: 16, paddingTop: 8 },
   big: { fontSize: 36, fontWeight: '700', letterSpacing: -1, color: INK, flexShrink: 1 },
   bigV: { fontSize: 24, fontWeight: '800', color: INK2, fontVariant: ['tabular-nums'] },

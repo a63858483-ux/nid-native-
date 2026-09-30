@@ -4,7 +4,6 @@ import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Footnote } from '@/components/Group';
 import { SheetHeader } from '@/components/SheetHeader';
 import { usePalette } from '@/lib/colors';
 import { collapseSteps } from '@/lib/traces';
@@ -25,6 +24,17 @@ export default function ThoughtSheet() {
     ...collapseSteps(it?.traces).map((s) => ({ icon: s.icon as SFSymbol, label: s.label })),
   ];
   const [open, setOpen] = useState(false);
+  // Only words, no steps: nothing to fold, the thinking is simply the page.
+  if (thinking && rows.length === 1) {
+    return (
+      <ScrollView contentContainerStyle={{ paddingBottom: 30 }}>
+        <SheetHeader title="Thought process" />
+        <Text selectable style={[styles.thought, styles.plain, { color: pal.ink }]}>
+          {thinking}
+        </Text>
+      </ScrollView>
+    );
+  }
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: 30 }}>
       <SheetHeader title="Thought process" />
@@ -41,9 +51,7 @@ export default function ThoughtSheet() {
                 </View>
                 {!last && <View style={[styles.line, { backgroundColor: pal.line }]} />}
               </View>
-              <Text
-                selectable={expandable && open}
-                style={[expandable ? styles.thought : styles.label, { color: pal.ink, paddingBottom: last ? 0 : 22 }]}>
+              <Text selectable={expandable && open} style={[expandable ? styles.thought : styles.label, { color: pal.ink, paddingBottom: last ? 0 : 22 }]}>
                 {expandable && open ? r.full : r.label}
               </Text>
               {expandable && !open && <SymbolView name="chevron.right" size={12} weight="semibold" tintColor={pal.meta} style={styles.chev} />}
@@ -63,7 +71,6 @@ export default function ThoughtSheet() {
           );
         })}
       </View>
-      <Footnote>Only you can see this. It never goes into the conversation.</Footnote>
     </ScrollView>
   );
 }
@@ -77,4 +84,5 @@ const styles = StyleSheet.create({
   label: { flex: 1, fontSize: 15, lineHeight: 22 },
   thought: { flex: 1, fontSize: 16, lineHeight: 26, fontFamily: 'Georgia' },
   chev: { width: 12, height: 22 },
+  plain: { paddingHorizontal: 22, paddingTop: 6 },
 });

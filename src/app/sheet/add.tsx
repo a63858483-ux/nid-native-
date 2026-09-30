@@ -3,7 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { DeviceEventEmitter, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { Footnote, Group } from '@/components/Group';
+import { Group } from '@/components/Group';
 import { SheetHeader } from '@/components/SheetHeader';
 import { usePalette } from '@/lib/colors';
 import * as S from '@/lib/study';
@@ -58,7 +58,10 @@ export default function AddSheet() {
       <SheetHeader title="Add" />
       <Group>
         {KINDS.map((k, i) => (
-          <Pressable key={k.ext} onPress={() => pick(k.types)} style={({ pressed }) => [styles.opt, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: pal.line }, pressed && { backgroundColor: pal.fill }]}>
+          <Pressable
+            key={k.ext}
+            onPress={() => pick(k.types)}
+            style={({ pressed }) => [styles.opt, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: pal.line }, pressed && { backgroundColor: pal.fill }]}>
             <FileIcon label={k.ext} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.ot, { color: pal.ink }]}>{k.title}</Text>
@@ -85,7 +88,6 @@ export default function AddSheet() {
           <SymbolView name="chevron.right" size={13} weight="semibold" tintColor={pal.meta} />
         </Pressable>
       </Group>
-      <Footnote>Choose a file from Files, iCloud Drive or any app that shares documents.</Footnote>
     </ScrollView>
   );
 }

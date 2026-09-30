@@ -2,7 +2,19 @@ import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import {
+  ActivityIndicator,
+  Keyboard,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GROUND, INK, MiniPlayer, MUTED, shelfTile, Tile, TrackRow } from '@/components/music/Parts';
@@ -31,7 +43,16 @@ function Search({ value, onChange }: { value: string; onChange: (s: string) => v
   return (
     <View style={styles.search}>
       <SymbolView name="magnifyingglass" size={15} tintColor={MUTED} />
-      <TextInput value={value} onChangeText={onChange} placeholder="Search Apple Music" placeholderTextColor={MUTED} style={styles.searchInput} returnKeyType="search" clearButtonMode="while-editing" autoCorrect={false} />
+      <TextInput
+        value={value}
+        onChangeText={onChange}
+        placeholder="Search Apple Music"
+        placeholderTextColor={MUTED}
+        style={styles.searchInput}
+        returnKeyType="search"
+        clearButtonMode="while-editing"
+        autoCorrect={false}
+      />
     </View>
   );
 }
@@ -63,7 +84,18 @@ export default function Music() {
       if (m === 'needs-build' || m === 'denied') setProblem(m);
     };
     M.picks()
-      .then(async (items) => setPicks(await Promise.all(items.map(async (p) => ({ ...p, track: await M.searchSongs(p.query).then((r) => r[0] ?? null).catch(() => null) })))))
+      .then(async (items) =>
+        setPicks(
+          await Promise.all(
+            items.map(async (p) => ({
+              ...p,
+              track: await M.searchSongs(p.query)
+                .then((r) => r[0] ?? null)
+                .catch(() => null),
+            })),
+          ),
+        ),
+      )
       .catch(() => {});
     await Promise.all([
       M.recentTracks().then(setRecent).catch(fail),
@@ -132,11 +164,18 @@ export default function Music() {
     </View>
   );
   const notice = problem ? (
-    <Text style={styles.notice}>{problem === 'needs-build' ? 'Update Nid from TestFlight to use your music here.' : 'Nid can’t see your music yet. Turn on Media & Apple Music for Nid douillet in Settings.'}</Text>
+    <Text style={styles.notice}>
+      {problem === 'needs-build' ? 'Update Nid from TestFlight to use your music here.' : 'Nid can’t see your music yet. Turn on Media & Apple Music for Nid douillet in Settings.'}
+    </Text>
   ) : null;
 
   const music = (
-    <ScrollView contentContainerStyle={{ paddingTop: insets.top + 18, paddingBottom: bottomPad }} onScroll={onScroll(0)} scrollEventThrottle={32} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+    <ScrollView
+      contentContainerStyle={{ paddingTop: insets.top + 18, paddingBottom: bottomPad }}
+      onScroll={onScroll(0)}
+      scrollEventThrottle={32}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag">
       <View style={styles.head}>
         <Pressable onPress={() => router.back()} hitSlop={10} style={styles.back} accessibilityLabel="Back to chat">
           <SymbolView name="chevron.left" size={17} weight="semibold" tintColor={INK} />
@@ -152,13 +191,15 @@ export default function Music() {
           <View style={styles.sec}>
             <View style={styles.shRow}>
               <Text style={styles.sh}>From Antoine</Text>
-              <Text style={styles.shNote}>songs he played in chat</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hrow}>
-              {picks.length === 0 && <Text style={styles.empty}>When he plays you a song in chat, it shows up here.</Text>}
+              {picks.length === 0 && <Text style={styles.empty}>Nothing yet.</Text>}
               {picks.map((p) =>
                 p.track ? (
-                  <Pressable key={p.query} onPress={() => play(pickTracks, pickTracks.indexOf(p.track!))} style={({ pressed }) => [styles.pick, { backgroundColor: deep(p.track!.color) }, pressed && { opacity: 0.85 }]}>
+                  <Pressable
+                    key={p.query}
+                    onPress={() => play(pickTracks, pickTracks.indexOf(p.track!))}
+                    style={({ pressed }) => [styles.pick, { backgroundColor: deep(p.track!.color) }, pressed && { opacity: 0.85 }]}>
                     <Image source={p.track.artwork || undefined} style={styles.pickArt} contentFit="cover" transition={120} />
                     <View style={styles.pickFoot}>
                       <Text style={styles.pickWhen}>{whenOf(p.at)} · in chat</Text>
@@ -189,7 +230,12 @@ export default function Music() {
   );
 
   const library = (
-    <ScrollView contentContainerStyle={{ paddingTop: insets.top + 18, paddingBottom: bottomPad }} onScroll={onScroll(1)} scrollEventThrottle={32} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+    <ScrollView
+      contentContainerStyle={{ paddingTop: insets.top + 18, paddingBottom: bottomPad }}
+      onScroll={onScroll(1)}
+      scrollEventThrottle={32}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag">
       <View style={styles.head}>
         <Pressable onPress={() => router.back()} hitSlop={10} style={styles.back} accessibilityLabel="Back to chat">
           <SymbolView name="chevron.left" size={17} weight="semibold" tintColor={INK} />
@@ -212,7 +258,7 @@ export default function Music() {
             </Pressable>
             <View style={styles.card}>
               {favs.length === 0 ? (
-                <Text style={styles.empty}>{loading ? 'Loading…' : 'Songs you mark with a star in Apple Music show up here.'}</Text>
+                <Text style={styles.empty}>{loading ? 'Loading…' : 'Nothing yet.'}</Text>
               ) : (
                 favs.slice(0, 6).map((t, i) => <TrackRow key={`${t.id}-${i}`} t={t} first={i === 0} on={t.id === playingId} onPress={() => play(favs, i)} />)
               )}
@@ -271,13 +317,22 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingBottom: 6 },
   back: { width: 32, height: 40, alignItems: 'center', justifyContent: 'center' },
   title: { fontFamily: 'PlayfairDisplay_800ExtraBold_Italic', fontSize: 38, color: INK },
-  search: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 20, marginTop: 6, height: 40, borderRadius: 12, paddingHorizontal: 12, backgroundColor: 'rgba(118,118,128,0.12)' },
+  search: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 20,
+    marginTop: 6,
+    height: 40,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(118,118,128,0.12)',
+  },
   searchInput: { flex: 1, fontSize: 16, color: INK },
   sec: { marginTop: 24 },
   shRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 20, marginBottom: 10 },
   sh: { fontSize: 21, fontWeight: '700', color: INK, letterSpacing: -0.2 },
   pad: { paddingHorizontal: 20, marginBottom: 10 },
-  shNote: { marginLeft: 'auto', fontSize: 13, color: MUTED },
   hrow: { gap: 12, paddingHorizontal: 20 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, rowGap: 16, paddingHorizontal: 20 },
   card: { marginHorizontal: 20, backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden' },

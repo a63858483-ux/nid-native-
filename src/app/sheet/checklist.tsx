@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import Animated, { FadeOut, LinearTransition } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 
-import { Footnote, Group } from '@/components/Group';
+import { Group } from '@/components/Group';
 import { SheetHeader } from '@/components/SheetHeader';
 import * as api from '@/lib/api';
 import { usePalette } from '@/lib/colors';
@@ -119,7 +119,17 @@ export default function ChecklistSheet() {
       <View style={styles.head}>
         <Svg width={48} height={48} style={{ transform: [{ rotate: '-90deg' }] }}>
           <Circle cx={24} cy={24} r={18} stroke={pal.fill} strokeWidth={5} fill="none" />
-          <Circle cx={24} cy={24} r={18} stroke={GREEN} strokeWidth={5} fill="none" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - (all.length ? done / all.length : 0))} />
+          <Circle
+            cx={24}
+            cy={24}
+            r={18}
+            stroke={GREEN}
+            strokeWidth={5}
+            fill="none"
+            strokeLinecap="round"
+            strokeDasharray={C}
+            strokeDashoffset={C * (1 - (all.length ? done / all.length : 0))}
+          />
         </Svg>
         <View style={{ flex: 1 }}>
           <Text style={[styles.count, { color: pal.ink }]}>{items ? `${done} of ${all.length} done` : ' '}</Text>
@@ -134,13 +144,23 @@ export default function ChecklistSheet() {
         <>
           {daily.length > 0 && (
             <>
-              <Text style={[styles.sec, { color: pal.ink2 }]}>EVERY DAY  <Text style={styles.secNote}>resets at midnight</Text></Text>
-              <Group>{daily.map((it, i) => <Row key={it.id} it={it} first={i === 0} />)}</Group>
+              <Text style={[styles.sec, { color: pal.ink2 }]}>
+                EVERY DAY <Text style={styles.secNote}>resets at midnight</Text>
+              </Text>
+              <Group>
+                {daily.map((it, i) => (
+                  <Row key={it.id} it={it} first={i === 0} />
+                ))}
+              </Group>
             </>
           )}
-          <Text style={[styles.sec, { color: pal.ink2 }]}>TODAY  <Text style={styles.secNote}>cleared tomorrow</Text></Text>
+          <Text style={[styles.sec, { color: pal.ink2 }]}>
+            TODAY <Text style={styles.secNote}>cleared tomorrow</Text>
+          </Text>
           <Group>
-            {once.map((it, i) => <Row key={it.id} it={it} first={i === 0} />)}
+            {once.map((it, i) => (
+              <Row key={it.id} it={it} first={i === 0} />
+            ))}
             {once.length === 0 && <Text style={[styles.empty, { color: pal.ink2 }]}>Nothing here yet.</Text>}
           </Group>
         </>
@@ -149,7 +169,15 @@ export default function ChecklistSheet() {
       <Group>
         <View style={styles.addRow}>
           <View style={[styles.ghost, { borderColor: pal.ink2 }]} />
-          <TextInput value={draft} onChangeText={setDraft} placeholder="Add something…" placeholderTextColor={pal.ink2} onSubmitEditing={add} returnKeyType="done" style={[styles.addInput, { color: pal.ink }]} />
+          <TextInput
+            value={draft}
+            onChangeText={setDraft}
+            placeholder="Add something…"
+            placeholderTextColor={pal.ink2}
+            onSubmitEditing={add}
+            returnKeyType="done"
+            style={[styles.addInput, { color: pal.ink }]}
+          />
         </View>
         <View style={styles.opts}>
           <Pressable onPress={() => setFixed((f) => !f)} style={[styles.opt, { backgroundColor: fixed ? pal.ink : pal.fill }]}>
@@ -158,14 +186,20 @@ export default function ChecklistSheet() {
           </Pressable>
           <View style={[styles.opt, { backgroundColor: pal.fill }]}>
             <SymbolView name="bell" size={11} tintColor={pal.ink2} />
-            <TextInput value={at} onChangeText={setAt} placeholder="Remind 21:30" placeholderTextColor={pal.ink2} keyboardType="numbers-and-punctuation" style={[styles.optInput, { color: pal.ink }]} />
+            <TextInput
+              value={at}
+              onChangeText={setAt}
+              placeholder="Remind 21:30"
+              placeholderTextColor={pal.ink2}
+              keyboardType="numbers-and-punctuation"
+              style={[styles.optInput, { color: pal.ink }]}
+            />
           </View>
           <Pressable onPress={add} disabled={!draft.trim() || busy} style={[styles.go, { backgroundColor: pal.blue }, (!draft.trim() || busy) && { opacity: 0.4 }]}>
             <SymbolView name="arrow.up" size={14} weight="bold" tintColor="#fff" />
           </Pressable>
         </View>
       </Group>
-      <Footnote>Shared with him. Daily items reset at midnight, one-offs are cleared the next day.</Footnote>
     </ScrollView>
   );
 }

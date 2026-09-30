@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ScrollView } from 'react-native';
 import Animated, { SlideInLeft, SlideInRight } from 'react-native-reanimated';
 
-import { Footnote, Group, Row } from '@/components/Group';
+import { Group, Row } from '@/components/Group';
 import { SheetHeader } from '@/components/SheetHeader';
 import { useApp } from '@/state/app';
 import type { Prefs } from '@/lib/storage';
@@ -73,7 +73,6 @@ export default function ModelSheet() {
               <Row key={e.key} first={i === 0} title={e.key} subtitle={e.desc} checked={e.key === prefs.effort} onPress={() => choose({ effort: e.key }, false)} />
             ))}
           </Group>
-          <Footnote>Applies from your next message. This conversation stays open.</Footnote>
         </Animated.View>
       )}
       {page === 'more' && (

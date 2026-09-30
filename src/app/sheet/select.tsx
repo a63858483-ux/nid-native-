@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { ScrollView, StyleSheet, Text } from 'react-native';
 
-import { Footnote, Group } from '@/components/Group';
+import { Group } from '@/components/Group';
 import { SheetHeader } from '@/components/SheetHeader';
 import { usePalette } from '@/lib/colors';
 
@@ -17,11 +17,8 @@ export default function SelectSheet() {
           {text}
         </Text>
       </Group>
-      <Footnote>Press and hold, then drag the handles to pick the part you want.</Footnote>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  text: { fontSize: 17, lineHeight: 26, padding: 18 },
-});
+const styles = StyleSheet.create({ text: { fontSize: 17, lineHeight: 26, padding: 18 } });

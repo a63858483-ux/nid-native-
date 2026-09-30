@@ -41,11 +41,6 @@ export function Row({
   );
 }
 
-export function Footnote({ children }: { children: ReactNode }) {
-  const pal = usePalette();
-  return <Text style={[styles.foot, { color: pal.ink2 }]}>{children}</Text>;
-}
-
 const styles = StyleSheet.create({
   group: { borderRadius: 22, overflow: 'hidden', marginHorizontal: 16, marginBottom: 12 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 56, paddingHorizontal: 18, paddingVertical: 11 },
@@ -54,5 +49,4 @@ const styles = StyleSheet.create({
   title: { fontSize: 17 },
   sub: { fontSize: 14 },
   value: { fontSize: 16 },
-  foot: { fontSize: 13, lineHeight: 18, marginHorizontal: 32, marginTop: -4, marginBottom: 12 },
 });

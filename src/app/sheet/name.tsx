@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { Footnote, Group } from '@/components/Group';
+import { Group } from '@/components/Group';
 import { SheetHeader } from '@/components/SheetHeader';
 import { usePalette } from '@/lib/colors';
 import { useApp } from '@/state/app';
@@ -19,12 +19,22 @@ export default function NameSheet() {
     <View>
       <SheetHeader title="Name" />
       <Group>
-        <TextInput value={v} onChangeText={setV} autoFocus selectTextOnFocus maxLength={16} placeholder="Antoine" placeholderTextColor={pal.ink2} onSubmitEditing={save} returnKeyType="done" style={[styles.input, { color: pal.ink }]} />
+        <TextInput
+          value={v}
+          onChangeText={setV}
+          autoFocus
+          selectTextOnFocus
+          maxLength={16}
+          placeholder="Antoine"
+          placeholderTextColor={pal.ink2}
+          onSubmitEditing={save}
+          returnKeyType="done"
+          style={[styles.input, { color: pal.ink }]}
+        />
       </Group>
       <Pressable onPress={save} style={[styles.btn, { backgroundColor: pal.ink }]}>
         <Text style={[styles.btnText, { color: pal.bg }]}>Save</Text>
       </Pressable>
-      <Footnote>Only changes what this app shows. The avatar is the same picture as the web app.</Footnote>
     </View>
   );
 }

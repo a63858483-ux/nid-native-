@@ -4,7 +4,6 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { Footnote } from '@/components/Group';
 import { SheetHeader } from '@/components/SheetHeader';
 import * as api from '@/lib/api';
 import { usePalette } from '@/lib/colors';
@@ -103,7 +102,6 @@ export default function StickersSheet() {
           {list.length === 0 && <Text style={[styles.empty, { color: pal.ink2 }]}>No stickers yet. Add some from the web app.</Text>}
         </>
       )}
-      {!sticking && <Footnote>Emoji come from the keyboard as usual; one to three of them on their own show up big.</Footnote>}
     </ScrollView>
   );
 }

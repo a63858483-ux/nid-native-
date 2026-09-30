@@ -3,7 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Footnote, Group, Row } from '@/components/Group';
+import { Group, Row } from '@/components/Group';
 import { SheetHeader } from '@/components/SheetHeader';
 import { usePalette } from '@/lib/colors';
 import { dropWallpaper, keepWallpaper, wallpaperUri } from '@/lib/storage';
@@ -44,7 +44,6 @@ export default function WallpaperSheet() {
           />
         ) : null}
       </Group>
-      <Footnote>The photo stays on this phone. Bubbles and the input bar let it show through.</Footnote>
     </ScrollView>
   );
 }
