@@ -282,9 +282,10 @@ export function Sidebar({ navigation }: DrawerContentComponentProps) {
                   key={n.key}
                   onPress={() => {
                     if (on) return navigation.closeDrawer();
-                    if (n.key === 'study' || n.key === 'music' || n.key === 'mind') {
+                    const to = { study: '/study', music: '/music', mind: '/mind', days: '/days' }[n.key] as '/study' | '/music' | '/mind' | '/days' | undefined;
+                    if (to) {
                       navigation.closeDrawer();
-                      return router.push(n.key === 'study' ? '/study' : n.key === 'music' ? '/music' : '/mind');
+                      return router.push(to);
                     }
                     showToast(`${n.label} comes in a later step`);
                   }}
