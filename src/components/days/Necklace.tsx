@@ -129,7 +129,7 @@ export function Necklace({
         {W > 0 && (
           <>
             <Svg width={W} height={H} style={StyleSheet.absoluteFill} pointerEvents="none">
-              <Path d={chain} stroke="rgba(255,255,255,0.85)" strokeWidth={1.4} fill="none" />
+              <Path d={chain} stroke="#1c1c1e" strokeWidth={1.2} fill="none" />
             </Svg>
             {days.slice(lo, hi + 1).map((day, k) => {
               const i = lo + k;
@@ -142,18 +142,16 @@ export function Necklace({
   );
 }
 
-const shadow = { textShadowColor: 'rgba(0,0,0,0.4)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } };
-
 const styles = StyleSheet.create({
   wrap: { height: H, overflow: 'visible' },
   bead: { position: 'absolute', left: -20, top: -20, width: 40, alignItems: 'center' },
   hit: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  dot: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },
-  today: { backgroundColor: '#e5484d' },
-  marked: { backgroundColor: 'transparent', borderWidth: 2, borderColor: '#fff' },
-  halo: { position: 'absolute', width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.9)' },
-  lbl: { marginTop: -8, fontSize: 11.5, fontWeight: '600', color: 'rgba(255,255,255,0.8)', fontVariant: ['tabular-nums'], ...shadow },
-  lblToday: { color: '#ffb3b6' },
-  lblOn: { fontSize: 15, fontWeight: '800', color: '#fff' },
-  lblFirst: { color: '#fff', fontWeight: '800' },
+  dot: { backgroundColor: '#1c1c1e' },
+  today: { backgroundColor: '#ff3b30' },
+  marked: { backgroundColor: '#fff', borderWidth: 2, borderColor: '#1c1c1e' },
+  halo: { position: 'absolute', width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: '#1c1c1e' },
+  lbl: { marginTop: -8, fontSize: 11.5, fontWeight: '600', color: '#8e8e93', fontVariant: ['tabular-nums'] },
+  lblToday: { color: '#ff3b30', fontWeight: '800' },
+  lblOn: { fontSize: 15, fontWeight: '800', color: '#1c1c1e' },
+  lblFirst: { color: '#1c1c1e', fontWeight: '800' },
 });
