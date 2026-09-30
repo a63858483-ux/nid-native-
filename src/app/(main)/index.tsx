@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { router, useNavigation } from 'expo-router';
 import { useDrawerProgress } from 'expo-router/drawer';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DeviceEventEmitter, FlatList, Pressable, Settings, StyleSheet, Text, View, type ScrollViewProps } from 'react-native';
+import { DeviceEventEmitter, FlatList, Keyboard, Pressable, Settings, StyleSheet, Text, View, type ScrollViewProps } from 'react-native';
 import { KeyboardChatScrollView, KeyboardStickyView } from 'react-native-keyboard-controller';
 import Animated, { interpolate, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +18,9 @@ import { RecordOverlay } from '@/components/RecordOverlay';
 import { VoiceBubble } from '@/components/VoiceBubble';
 import { LinkCard } from '@/components/LinkCard';
 import { AlarmCard, AlarmOffCard, SongCard } from '@/components/MusicCards';
+import { PayCard, PaySheet, QuizPill, QuizSheet, quizDone } from '@/components/ChatCards';
+import type { Pay } from '@/lib/payments';
+import type { QuizCard } from '@/lib/text';
 import { Decorated, RepliesLink, ReplyQuote } from '@/components/Decor';
 import { MessageMenu, type MenuAction } from '@/components/MessageMenu';
 import { PlusMenu, type PlusAction } from '@/components/PlusMenu';
@@ -153,6 +156,28 @@ function ChatScreenInner() {
     return () => Object.values(t).forEach(clearTimeout);
   }, []);
   const rows = useMemo(() => buildRows(items, now, reveal).reverse(), [items, now, reveal]);
+
+  // His purchase card opens a glass sheet; his quiz pops up on its own when it arrives live,
+  // pushing the keyboard down (her call, 2026-09-30), and waits behind its pill otherwise.
+  const [payOpen, setPayOpen] = useState<Pay | null>(null);
+  const [payRev, setPayRev] = useState(0);
+  const [quiz, setQuiz] = useState<{ key: string; cards: QuizCard[]; ask: boolean } | null>(null);
+  const [quizRev, setQuizRev] = useState(0);
+  const autoQuiz = useRef(new Set<string>());
+  const openQuiz = useCallback((key: string, cards: QuizCard[], ask: boolean) => {
+    Keyboard.dismiss();
+    setQuiz({ key, cards, ask });
+  }, []);
+  useEffect(() => {
+    const r = rows.find((x) => x.type === 'inline' && x.media.kind === 'quiz');
+    if (!r || r.type !== 'inline' || r.media.kind !== 'quiz' || !r.fresh) return;
+    const parent = items.find((i) => i.key === r.itemKey);
+    if (!parent || parent.status === 'streaming' || autoQuiz.current.has(r.key) || quizDone(r.key)) return;
+    autoQuiz.current.add(r.key);
+    const m = r.media;
+    const t = setTimeout(() => openQuiz(r.key, m.cards, m.ask), 350);
+    return () => clearTimeout(t);
+  }, [rows, items, openQuiz]);
   const wall = wallpaperUri(prefs.wallpaper);
 
   // Rounded corners + shadow as the drawer pushes the page aside.
@@ -383,6 +408,10 @@ function ChatScreenInner() {
               />
             ) : m.kind === 'alarmOff' ? (
               <AlarmOffCard msgKey={item.itemKey} time={m.time} date={m.date} mine={mine} />
+            ) : m.kind === 'pay' ? (
+              <PayCard key={`${m.id}-${payRev}`} id={m.id} onOpen={setPayOpen} />
+            ) : m.kind === 'quiz' ? (
+              <QuizPill key={quizRev} count={m.cards.length} ask={m.ask} done={quizDone(item.key)} onPress={() => openQuiz(item.key, m.cards, m.ask)} />
             ) : null}
           </Animated.View>
         );
@@ -427,7 +456,7 @@ function ChatScreenInner() {
         </Animated.View>
       );
     },
-    [pal.meta, pal.wall, prefs.bubble, flash, convId, menu?.row.key, photo, items],
+    [pal.meta, pal.wall, prefs.bubble, flash, convId, menu?.row.key, photo, items, openQuiz, payRev, quizRev],
   );
 
   return (
@@ -508,6 +537,15 @@ function ChatScreenInner() {
       )}
 
       {photo && <PhotoViewer photo={photo} onClosed={() => setPhoto(null)} />}
+      <PaySheet pay={payOpen} onClose={() => setPayOpen(null)} onChanged={() => setPayRev((n) => n + 1)} />
+      <QuizSheet
+        open={quiz}
+        onClose={() => {
+          setQuiz(null);
+          setQuizRev((n) => n + 1);
+        }}
+        onSend={(text) => send(text)}
+      />
 
       <PlusMenu
         open={plusOpen}

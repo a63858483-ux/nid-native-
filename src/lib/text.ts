@@ -8,20 +8,48 @@ export type Media =
   | { kind: 'voice'; text: string }
   | { kind: 'song'; query: string }
   | { kind: 'alarm'; date?: string; time: string; title: string }
-  | { kind: 'alarmOff'; date?: string; time: string };
+  | { kind: 'alarmOff'; date?: string; time: string }
+  | { kind: 'quiz'; cards: QuizCard[]; ask: boolean }
+  | { kind: 'pay'; id: string };
+
+// [quiz:{"cards":[…]}] from him: 选择 has options (a = the right index), 填空 has accept[], 问答 neither.
+// The old [ask:{"q","options"}] is one open multiple choice that sends on tap.
+export type QuizCard = { t?: string; tag?: string; q: string; options?: string[]; a?: number; accept?: string[]; id?: number };
+
+// Pull out [name:{…}] with a JSON body; braces are matched so nested objects and arrays survive.
+function takeJson(t: string, name: string, onHit: (data: unknown) => void): string {
+  const open = `[${name}:{`;
+  let out = '';
+  let i = 0;
+  for (;;) {
+    const at = t.indexOf(open, i);
+    if (at < 0) return out + t.slice(i);
+    let depth = 0;
+    let inStr = false;
+    let end = -1;
+    for (let k = at + open.length - 1; k < t.length; k++) {
+      const c = t[k];
+      if (inStr) {
+        if (c === '\\') k++;
+        else if (c === '"') inStr = false;
+      } else if (c === '"') inStr = true;
+      else if (c === '{') depth++;
+      else if (c === '}' && --depth === 0) {
+        end = k;
+        break;
+      }
+    }
+    if (end < 0 || t[end + 1] !== ']') return out + t.slice(i, at); // still streaming in: hide the rest
+    try {
+      onHit(JSON.parse(t.slice(at + open.length - 1, end + 1)));
+    } catch {}
+    out += t.slice(i, at);
+    i = end + 2;
+  }
+}
 
 const IMG_RE = /(?:\/media\/[^\s)\]"<>`']+\.(?:png|jpe?g|gif|webp)(?:\?[^\s)\]"<>`']*)?)|(?:\/api\/albums\/media\/[^\s)\]"<>`']+\.(?:png|jpe?g|gif|webp)(?:\?[^\s)\]"<>`']*)?)/gi;
-const DROP = [
-  /\[\/?voice\]/g,
-  /\[toy:(?:suck|vibe|ems):\d+\]/g,
-  /\[quiz:\{[\s\S]*?\}\]/g,
-  /\[ask:\{[\s\S]*?\}\]/g,
-  /\[pay:\{[\s\S]*?\}\]/g,
-  /<#\d{1,2}(?:\.\d{1,2})?#>/g,
-  /<销·[^>]*\/>/g,
-  /<等\s*\/>/g,
-  /<succhia_\w+>[\s\S]*?<\/succhia_\w+>/g,
-];
+const DROP = [/\[\/?voice\]/g, /\[toy:(?:suck|vibe|ems):\d+\]/g, /<#\d{1,2}(?:\.\d{1,2})?#>/g, /<销·[^>]*\/>/g, /<等\s*\/>/g, /<succhia_\w+>[\s\S]*?<\/succhia_\w+>/g];
 
 export function parseMessage(raw: string): { text: string; media: Media[] } {
   let t = raw || '';
@@ -36,6 +64,18 @@ export function parseMessage(raw: string): { text: string; media: Media[] } {
   const open = t.indexOf('[voice]');
   if (open >= 0) t = t.slice(0, open);
   for (const re of DROP) t = t.replace(re, '');
+  t = takeJson(t, 'quiz', (d) => {
+    const cards = ((d as { cards?: QuizCard[] })?.cards ?? []).filter((c) => c && c.q);
+    if (cards.length) media.push({ kind: 'quiz', cards, ask: false });
+  });
+  t = takeJson(t, 'ask', (d) => {
+    const a = d as { q?: string; options?: string[] };
+    if (a?.q) media.push({ kind: 'quiz', cards: [{ t: '选择', q: a.q, options: a.options ?? [] }], ask: true });
+  });
+  t = takeJson(t, 'pay', (d) => {
+    const id = (d as { request_id?: string })?.request_id;
+    if (id) media.push({ kind: 'pay', id });
+  });
   // [song:歌手 歌名] → a playable Apple Music card
   t = t.replace(/\[song:([^\]]+)\]/g, (_, q: string) => {
     media.push({ kind: 'song', query: q.trim() });
