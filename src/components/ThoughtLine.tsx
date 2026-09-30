@@ -49,7 +49,12 @@ export function ThoughtLine({ label, live, icon, ts, onPress }: { label: string;
             <Text style={[styles.label, { color: pal.meta }]}>{label}</Text>
             {!live && <SymbolView name="chevron.right" size={10} weight="semibold" tintColor={pal.meta} />}
           </Pressable>
-        ) : null}
+        ) : (
+          // No thinking to open: the clock just says when (her call, 2026-09-30).
+          <Text style={[styles.label, styles.time, { color: pal.meta }]}>
+            {t.hh}:{t.mm}
+          </Text>
+        )}
       </View>
       {open && (
         <Animated.View
@@ -75,6 +80,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   label: { fontSize: 12.5, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  time: { fontWeight: '500' },
   stamp: {
     flexDirection: 'row',
     alignItems: 'center',
