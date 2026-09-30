@@ -57,7 +57,7 @@ export type Row =
 const FOLD_MIN = 4;
 const callLabel = (a: string) => a.replace('通话开始', 'Call started').replace('通话结束', 'Call ended');
 
-const DIVIDER_GAP = 20 * 60_000;
+const DIVIDER_GAP = 5 * 60_000;
 // Nid runs on Beijing time whatever the phone's zone says.
 const TZ = 'Asia/Shanghai';
 const hm = (d: Date) => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TZ });
