@@ -3,13 +3,25 @@ import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
+import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
+import Animated, { FadeInDown, FadeOutDown, useAnimatedStyle } from 'react-native-reanimated';
 
 import { bjDate, type Note } from '@/lib/study';
 
 export const HER_MARK = '#ffd84d';
 export const HIS_MARK = '#b9dcff';
+
+// Rides the keyboard up (the cards sit absolutely at the bottom, which a padding-based avoider
+// can't move). The bottom inset is given back once the keyboard covers it.
+function KeyboardLift({ bottom, children }: { bottom: number; children: React.ReactNode }) {
+  const { height, progress } = useReanimatedKeyboardAnimation();
+  const st = useAnimatedStyle(() => ({ transform: [{ translateY: height.value + progress.value * bottom }] }));
+  return (
+    <Animated.View style={[StyleSheet.absoluteFill, st]} pointerEvents="box-none">
+      {children}
+    </Animated.View>
+  );
+}
 
 // Every note that hangs off a root highlight, oldest first (replies can reply to replies).
 export function threadOf(root: Note, all: Note[]) {
@@ -57,51 +69,53 @@ export function NoteThread({
     }
   };
   return (
-    <KeyboardAvoidingView behavior="padding" style={StyleSheet.absoluteFill} pointerEvents="box-none">
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close note" />
-      <Animated.View entering={FadeInDown.duration(220)} exiting={FadeOutDown.duration(160)} style={[styles.card, { marginBottom: bottom }]}>
-        <BlurView tint="systemChromeMaterialLight" intensity={90} style={StyleSheet.absoluteFill} />
-        <View style={styles.head}>
-          <Text style={styles.quote} numberOfLines={4}>
-            {quote}
-          </Text>
-          <Pressable onPress={onClose} hitSlop={10} style={styles.x} accessibilityLabel="Close">
-            <SymbolView name="xmark" size={11} weight="bold" tintColor="#555" />
-          </Pressable>
-        </View>
-        {msgs.length > 0 && (
-          <ScrollView style={styles.list} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
-            {msgs.map((m) => {
-              const me = m.author === 'ta';
-              return (
-                <View key={m.id} style={[styles.msg, me && styles.msgMe]}>
-                  <View style={[styles.bub, me ? styles.bubMe : styles.bubHim]}>
-                    <Text style={[styles.bubText, me && { color: '#fff' }]}>{m.text}</Text>
+      <KeyboardLift bottom={bottom}>
+        <Animated.View entering={FadeInDown.duration(220)} exiting={FadeOutDown.duration(160)} style={[styles.card, { marginBottom: bottom }]}>
+          <BlurView tint="systemChromeMaterialLight" intensity={90} style={StyleSheet.absoluteFill} />
+          <View style={styles.head}>
+            <Text style={styles.quote} numberOfLines={4}>
+              {quote}
+            </Text>
+            <Pressable onPress={onClose} hitSlop={10} style={styles.x} accessibilityLabel="Close">
+              <SymbolView name="xmark" size={11} weight="bold" tintColor="#555" />
+            </Pressable>
+          </View>
+          {msgs.length > 0 && (
+            <ScrollView style={styles.list} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
+              {msgs.map((m) => {
+                const me = m.author === 'ta';
+                return (
+                  <View key={m.id} style={[styles.msg, me && styles.msgMe]}>
+                    <View style={[styles.bub, me ? styles.bubMe : styles.bubHim]}>
+                      <Text style={[styles.bubText, me && { color: '#fff' }]}>{m.text}</Text>
+                    </View>
+                    <Text style={styles.who}>
+                      {me ? '挞挞' : 'Antoine'} · {bjDate(m.created_at).hm}
+                    </Text>
                   </View>
-                  <Text style={styles.who}>
-                    {me ? '挞挞' : 'Antoine'} · {bjDate(m.created_at).hm}
-                  </Text>
-                </View>
-              );
-            })}
-          </ScrollView>
-        )}
-        <View style={styles.inputRow}>
-          <TextInput
-            value={text}
-            onChangeText={setText}
-            placeholder={root ? '回一句…' : '写点什么…'}
-            placeholderTextColor="#999"
-            style={styles.input}
-            multiline
-            autoFocus={!root}
-          />
-          <Pressable onPress={send} disabled={!text.trim() || busy} style={[styles.send, (!text.trim() || busy) && { opacity: 0.4 }]} accessibilityLabel="Send">
-            <SymbolView name="arrow.up" size={15} weight="bold" tintColor="#fff" />
-          </Pressable>
-        </View>
-      </Animated.View>
-    </KeyboardAvoidingView>
+                );
+              })}
+            </ScrollView>
+          )}
+          <View style={styles.inputRow}>
+            <TextInput
+              value={text}
+              onChangeText={setText}
+              placeholder={root ? '回一句…' : '写点什么…'}
+              placeholderTextColor="#999"
+              style={styles.input}
+              multiline
+              autoFocus={!root}
+            />
+            <Pressable onPress={send} disabled={!text.trim() || busy} style={[styles.send, (!text.trim() || busy) && { opacity: 0.4 }]} accessibilityLabel="Send">
+              <SymbolView name="arrow.up" size={15} weight="bold" tintColor="#fff" />
+            </Pressable>
+          </View>
+        </Animated.View>
+      </KeyboardLift>
+    </View>
   );
 }
 
@@ -200,25 +214,30 @@ export function NoteEditor({
     }
   };
   return (
-    <KeyboardAvoidingView behavior="padding" style={StyleSheet.absoluteFill} pointerEvents="box-none">
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.12)' }]} onPress={onClose} accessibilityLabel="Close note" />
-      <Animated.View entering={FadeInDown.duration(220)} exiting={FadeOutDown.duration(160)} style={[styles.editor, { paddingBottom: 16 + bottom }]}>
-        <View style={styles.edHead}>
-          <Text style={styles.edTitle}>
-            Note <Text style={styles.edTime}>{hm}</Text>
-          </Text>
-          <Pressable onPress={save} style={styles.edOk} accessibilityLabel="Done" hitSlop={8}>
-            <SymbolView name="checkmark" size={17} weight="semibold" tintColor="#fff" />
-          </Pressable>
-        </View>
-        <View style={styles.edQuote}>
-          <View style={styles.edBar} />
-          <Text style={styles.edQuoteText} numberOfLines={3}>
-            {quote}
-          </Text>
-        </View>
-        <TextInput value={text} onChangeText={setText} autoFocus multiline placeholder="Add a note" placeholderTextColor="#aaa" style={styles.edInput} />
-      </Animated.View>
-    </KeyboardAvoidingView>
+      <KeyboardLift bottom={bottom}>
+        <Animated.View
+          entering={FadeInDown.duration(220)}
+          exiting={FadeOutDown.duration(160)}
+          style={[styles.editor, { paddingBottom: 16 + bottom, position: 'absolute', left: 0, right: 0, bottom: 0 }]}>
+          <View style={styles.edHead}>
+            <Text style={styles.edTitle}>
+              Note <Text style={styles.edTime}>{hm}</Text>
+            </Text>
+            <Pressable onPress={save} style={styles.edOk} accessibilityLabel="Done" hitSlop={8}>
+              <SymbolView name="checkmark" size={17} weight="semibold" tintColor="#fff" />
+            </Pressable>
+          </View>
+          <View style={styles.edQuote}>
+            <View style={styles.edBar} />
+            <Text style={styles.edQuoteText} numberOfLines={3}>
+              {quote}
+            </Text>
+          </View>
+          <TextInput value={text} onChangeText={setText} autoFocus multiline placeholder="Add a note" placeholderTextColor="#aaa" style={styles.edInput} />
+        </Animated.View>
+      </KeyboardLift>
+    </View>
   );
 }

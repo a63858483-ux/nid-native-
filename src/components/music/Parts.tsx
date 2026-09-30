@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { NidMusic } from '../../../modules/nid-music';
 import { useNowPlaying, type Shelf, type Track } from '@/lib/music';
@@ -71,7 +71,7 @@ export function MiniPlayer({ bottom, folded }: { bottom: number; folded: boolean
   const now = useNowPlaying(false);
   const f = useSharedValue(folded ? 1 : 0);
   useEffect(() => {
-    f.set(withSpring(folded ? 1 : 0, { damping: 18, stiffness: 170 }));
+    f.set(withTiming(folded ? 1 : 0, { duration: 300, easing: Easing.out(Easing.cubic) }));
   }, [folded, f]);
   const st = useAnimatedStyle(() => ({ bottom: bottom + 78 * (1 - f.value), left: 16 + 74 * f.value }));
   const item = now?.item;

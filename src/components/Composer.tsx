@@ -3,18 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, {
-  FadeInDown,
-  FadeOutDown,
-  LinearTransition,
-  useAnimatedStyle,
-  useSharedValue,
-  withSequence,
-  withSpring,
-  withTiming,
-  ZoomIn,
-  ZoomOut,
-} from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeOut, FadeOutDown, LinearTransition, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 
 import * as Haptics from 'expo-haptics';
 
@@ -49,6 +38,15 @@ function pieceStyle(kinds: Kind[]): TextStyle | undefined {
 export type HoldEvent = { phase: 'start' | 'move' | 'end'; x: number; y: number };
 
 export type Pending = { local: string; att?: Attachment; name: string; isImage: boolean; uploading: boolean };
+
+// The send arrow and mic trade places quietly: a short fade with a small grow, no bounce.
+const softIn = () => {
+  'worklet';
+  return {
+    initialValues: { opacity: 0, transform: [{ scale: 0.82 }] },
+    animations: { opacity: withTiming(1, { duration: 140 }), transform: [{ scale: withTiming(1, { duration: 160 }) }] },
+  };
+};
 
 export function Composer({
   myColor,
@@ -289,7 +287,7 @@ export function Composer({
               </View>
               <View style={styles.action}>
                 {ready ? (
-                  <Animated.View key="send" entering={ZoomIn.springify().damping(16)} exiting={ZoomOut.duration(120)} style={StyleSheet.absoluteFill}>
+                  <Animated.View key="send" entering={softIn} exiting={FadeOut.duration(100)} style={StyleSheet.absoluteFill}>
                     <Pressable onPress={submit} accessibilityLabel="Send" style={[styles.send, { backgroundColor: sendColor }]}>
                       <SymbolView name="arrow.up" size={16} weight="bold" tintColor={sendInk} />
                     </Pressable>
@@ -299,7 +297,7 @@ export function Composer({
                     <ActivityIndicator size="small" color={ink2} />
                   </View>
                 ) : (
-                  <Animated.View key="mic" entering={ZoomIn.duration(140)} exiting={ZoomOut.duration(120)} style={[StyleSheet.absoluteFill, styles.center]}>
+                  <Animated.View key="mic" entering={softIn} exiting={FadeOut.duration(100)} style={[StyleSheet.absoluteFill, styles.center]}>
                     <Pressable onPress={() => onTalk?.(true)} hitSlop={8} accessibilityLabel="Voice message" style={styles.center}>
                       <SymbolView name="mic" size={19} tintColor={ink2} />
                     </Pressable>

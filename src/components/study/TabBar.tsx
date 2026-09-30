@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Animated, { Easing, interpolate, useAnimatedProps, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
+import Animated, { Easing, interpolate, useAnimatedProps, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 
 const APath = Animated.createAnimatedComponent(Path);
@@ -45,12 +45,12 @@ function Item({ i, cur, W, count, item, m, onPress }: { i: number; cur: number; 
   const on = i === cur;
   const lift = useSharedValue(on ? 1 : 0);
   useEffect(() => {
-    lift.set(withSpring(on ? 1 : 0, { damping: 13, stiffness: 170 }));
+    lift.set(withTiming(on ? 1 : 0, { duration: 260, easing: Easing.out(Easing.cubic) }));
   }, [on, lift]);
   const st = useAnimatedStyle(() => {
     const full = PAD + ((W - PAD * 2) / count) * (i + 0.5);
     const cx = full + (H / 2 - full) * m.value;
-    return { transform: [{ translateX: cx - 26 }, { translateY: -30 * lift.value * (1 - m.value) }], opacity: on ? 1 : 1 - m.value };
+    return { transform: [{ translateX: cx - 26 }, { translateY: -22 * lift.value * (1 - m.value) }], opacity: on ? 1 : 1 - m.value };
   });
   const bub = useAnimatedStyle(() => ({ opacity: lift.value * (1 - m.value) }));
   return (
@@ -87,13 +87,13 @@ export function StudyTabBar({
   const [n0, n1, n2] = n;
   const m = useSharedValue(folded ? 1 : 0);
   useEffect(() => {
-    const cfg = { duration: 420, easing: Easing.out(Easing.cubic) };
+    const cfg = { duration: 300, easing: Easing.out(Easing.cubic) };
     n0.set(withTiming(tab === 0 ? 1 : 0, cfg));
     n1.set(withTiming(tab === 1 ? 1 : 0, cfg));
     n2.set(withTiming(tab === 2 ? 1 : 0, cfg));
   }, [tab, n0, n1, n2]);
   useEffect(() => {
-    m.set(withSpring(folded ? 1 : 0, { damping: 18, stiffness: 170 }));
+    m.set(withTiming(folded ? 1 : 0, { duration: 300, easing: Easing.out(Easing.cubic) }));
   }, [folded, m]);
   const pathProps = useAnimatedProps(() => ({ d: W ? barPath(W, count, n0.value, n1.value, n2.value, m.value) : '' }));
   const box = useAnimatedStyle(() => ({ width: W ? interpolate(m.value, [0, 1], [W, H]) : '100%' }));
