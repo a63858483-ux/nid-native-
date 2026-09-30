@@ -11,15 +11,17 @@ export function Glass({
   children,
   interactive,
   tint,
+  clear,
 }: {
   style?: StyleProp<ViewStyle>;
   children?: ReactNode;
   interactive?: boolean;
   tint?: string;
+  clear?: boolean; // iOS 26 "Clear" glass: see-through, no frosting (her liquid glass)
 }) {
   if (HAS_GLASS) {
     return (
-      <GlassView style={style} isInteractive={interactive} tintColor={tint}>
+      <GlassView style={style} isInteractive={interactive} tintColor={tint} glassEffectStyle={clear ? 'clear' : 'regular'}>
         {children}
       </GlassView>
     );

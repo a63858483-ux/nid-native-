@@ -22,6 +22,7 @@ const NAV: { key: string; label: string; icon: SFSymbol; meta: string }[] = [
   { key: 'mind', label: 'Mind', icon: 'heart', meta: '' },
   { key: 'study', label: 'Study', icon: 'book', meta: '' },
   { key: 'music', label: 'Music', icon: 'music.note', meta: '' },
+  { key: 'private', label: 'Undertow', icon: 'moon.stars', meta: '' },
   { key: 'album', label: 'Album', icon: 'photo', meta: 'locked' },
 ];
 
@@ -282,7 +283,8 @@ export function Sidebar({ navigation }: DrawerContentComponentProps) {
                   key={n.key}
                   onPress={() => {
                     if (on) return navigation.closeDrawer();
-                    const to = { study: '/study', music: '/music', mind: '/mind', days: '/days' }[n.key] as '/study' | '/music' | '/mind' | '/days' | undefined;
+                    const to = { study: '/study', music: '/music', mind: '/mind', days: '/days', private: '/private' }[n.key] as
+                      '/study' | '/music' | '/mind' | '/days' | '/private' | undefined;
                     if (to) {
                       navigation.closeDrawer();
                       return router.push(to);

@@ -19,7 +19,7 @@ const STUDY: TabItem[] = [
 
 // The bar outline: rounded rectangle, with a smooth dip under each tab in proportion to its notch
 // value (0 flat, 1 fully dipped). m folds it into a circle (0 open, 1 folded).
-function barPath(W: number, count: number, n0: number, n1: number, n2: number, m: number) {
+function barPath(W: number, count: number, n0: number, n1: number, n2: number, n3: number, m: number) {
   'worklet';
   const w = W + (H - W) * m;
   const r = 24 + (H / 2 - 24) * m;
@@ -28,7 +28,7 @@ function barPath(W: number, count: number, n0: number, n1: number, n2: number, m
   const D = 36;
   const cw = (W - PAD * 2) / count;
   let p = `M ${r} 0`;
-  const ns = [n0, n1, n2];
+  const ns = [n0, n1, n2, n3];
   for (let i = 0; i < count; i++) {
     const k = ns[i] * (1 - m);
     if (k < 0.01) continue;
@@ -83,19 +83,20 @@ export function StudyTabBar({
 }) {
   const count = items.length;
   const [W, setW] = useState(0);
-  const n = [useSharedValue(tab === 0 ? 1 : 0), useSharedValue(tab === 1 ? 1 : 0), useSharedValue(tab === 2 ? 1 : 0)];
-  const [n0, n1, n2] = n;
+  const n = [useSharedValue(tab === 0 ? 1 : 0), useSharedValue(tab === 1 ? 1 : 0), useSharedValue(tab === 2 ? 1 : 0), useSharedValue(tab === 3 ? 1 : 0)];
+  const [n0, n1, n2, n3] = n;
   const m = useSharedValue(folded ? 1 : 0);
   useEffect(() => {
     const cfg = { duration: 300, easing: Easing.out(Easing.cubic) };
     n0.set(withTiming(tab === 0 ? 1 : 0, cfg));
     n1.set(withTiming(tab === 1 ? 1 : 0, cfg));
     n2.set(withTiming(tab === 2 ? 1 : 0, cfg));
-  }, [tab, n0, n1, n2]);
+    n3.set(withTiming(tab === 3 ? 1 : 0, cfg));
+  }, [tab, n0, n1, n2, n3]);
   useEffect(() => {
     m.set(withTiming(folded ? 1 : 0, { duration: 300, easing: Easing.out(Easing.cubic) }));
   }, [folded, m]);
-  const pathProps = useAnimatedProps(() => ({ d: W ? barPath(W, count, n0.value, n1.value, n2.value, m.value) : '' }));
+  const pathProps = useAnimatedProps(() => ({ d: W ? barPath(W, count, n0.value, n1.value, n2.value, n3.value, m.value) : '' }));
   const box = useAnimatedStyle(() => ({ width: W ? interpolate(m.value, [0, 1], [W, H]) : '100%' }));
   return (
     <View style={[styles.wrap, { bottom }]} onLayout={(e) => setW(e.nativeEvent.layout.width)} pointerEvents="box-none">
