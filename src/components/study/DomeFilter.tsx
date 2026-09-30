@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedProps, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedProps, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 
 const APath = Animated.createAnimatedComponent(Path);
@@ -23,9 +23,9 @@ function domePath(w: number, cx: number) {
 function Chip({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
   const up = useSharedValue(on ? 1 : 0);
   useEffect(() => {
-    up.set(withSpring(on ? 1 : 0, { damping: 12, stiffness: 180 }));
+    up.set(withTiming(on ? 1 : 0, { duration: 240, easing: Easing.out(Easing.cubic) }));
   }, [on, up]);
-  const st = useAnimatedStyle(() => ({ transform: [{ translateY: -8 * up.value }, { scale: 1 + 0.08 * up.value }] }));
+  const st = useAnimatedStyle(() => ({ transform: [{ translateY: -6 * up.value }, { scale: 1 + 0.04 * up.value }] }));
   return (
     <Pressable onPress={onPress} style={styles.chip} accessibilityRole="tab" accessibilityState={{ selected: on }}>
       <Animated.Text style={[styles.label, { color: on ? '#fff' : 'rgba(255,255,255,0.42)' }, st]}>{label}</Animated.Text>
@@ -44,7 +44,7 @@ export function DomeFilter({ items, value, onChange }: { items: { key: string; l
   useEffect(() => {
     if (!w) return;
     const to = (w / items.length) * (idx + 0.5);
-    cx.set(cx.value < 0 ? to : withSpring(to, { damping: 16, stiffness: 150, mass: 0.9 }));
+    cx.set(cx.value < 0 ? to : withTiming(to, { duration: 300, easing: Easing.out(Easing.cubic) }));
   }, [w, idx, items.length, cx]);
   const props = useAnimatedProps(() => ({ d: w && cx.value >= 0 ? domePath(w, cx.value) : '' }));
   return (
